@@ -220,9 +220,7 @@ CREATE TABLE IF NOT EXISTS acompanhamentos_ambulancia (
     ON UPDATE CASCADE
     ON DELETE SET NULL,
   CONSTRAINT ck_acompanhamentos_periodo
-    CHECK (retorno_em >= saida_em),
-  CONSTRAINT ck_acompanhamentos_medico_uti
-    CHECK (tipo <> 'UTI_MOVEL' OR medico_id IS NOT NULL OR nome_medico_historico IS NOT NULL)
+    CHECK (retorno_em >= saida_em)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS destinos_favoritos (

@@ -1,5 +1,6 @@
 const { Router } = require("express");
 
+const authController = require("../controllers/auth-controller");
 const createResourceController = require("../controllers/resource-controller-factory");
 const solicitacoesTransporteActions = require("../controllers/solicitacoes-transporte-controller");
 const createCrudRepository = require("../repositories/crud-repository");
@@ -15,6 +16,8 @@ router.get("/", (_request, response) => {
     resources: Object.values(resources).map((resource) => resource.route),
   });
 });
+
+router.post("/autenticacao/entrar", authController.login);
 
 for (const definition of Object.values(resources)) {
   const repository = createCrudRepository(definition);
