@@ -1,0 +1,31 @@
+{
+  "name": "api-transporte-mais",
+  "version": "0.1.0",
+  "description": "API do projeto Transporte Mais",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "start": "node index.js",
+    "check": "node scripts/check-js.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "api",
+    "express",
+    "transporte"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.0",
+    "mysql2": "^3.14.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
