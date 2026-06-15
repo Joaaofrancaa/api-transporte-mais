@@ -1,6 +1,6 @@
 function notFound(request, response) {
   response.status(404).json({
-    error: "Rota nao encontrada.",
+    error: "Rota não encontrada.",
     method: request.method,
     path: request.originalUrl,
   });

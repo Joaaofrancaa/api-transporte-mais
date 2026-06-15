@@ -19,7 +19,7 @@ function validateRequiredFields(body, requiredFields) {
   if (missingFields.length) {
     throw createHttpError(
       400,
-      `Campos obrigatorios ausentes: ${missingFields.join(", ")}.`,
+      `Campos obrigatórios ausentes: ${missingFields.join(", ")}.`,
     );
   }
 }
@@ -39,7 +39,7 @@ function createResourceController(repository, definition) {
       const item = await repository.findById(request.params.id);
 
       if (!item) {
-        throw createHttpError(404, "Registro nao encontrado.");
+        throw createHttpError(404, "Registro não encontrado.");
       }
 
       response.json({ data: item });
@@ -65,7 +65,7 @@ function createResourceController(repository, definition) {
       const currentItem = await repository.findById(request.params.id);
 
       if (!currentItem) {
-        throw createHttpError(404, "Registro nao encontrado.");
+        throw createHttpError(404, "Registro não encontrado.");
       }
 
       const data = pickWritableData(request.body, definition.writableColumns);
@@ -82,7 +82,7 @@ function createResourceController(repository, definition) {
       const currentItem = await repository.findById(request.params.id);
 
       if (!currentItem) {
-        throw createHttpError(404, "Registro nao encontrado.");
+        throw createHttpError(404, "Registro não encontrado.");
       }
 
       const item = await repository.inactivate(request.params.id);

@@ -18,6 +18,12 @@ router.get("/", (_request, response) => {
 });
 
 router.post("/autenticacao/entrar", authController.login);
+router.post("/autenticacao/esqueci-senha", authController.requestPasswordRecovery);
+router.post(
+  "/autenticacao/validar-codigo-recuperacao",
+  authController.validatePasswordRecoveryCode,
+);
+router.post("/autenticacao/redefinir-senha", authController.resetPassword);
 
 for (const definition of Object.values(resources)) {
   const repository = createCrudRepository(definition);

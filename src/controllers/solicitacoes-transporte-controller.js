@@ -13,13 +13,13 @@ async function updateSituation(request, response, next, options) {
     const item = await repository.findById(request.params.id);
 
     if (!item) {
-      throw createHttpError(404, "Solicitacao nao encontrada.");
+      throw createHttpError(404, "Solicitação não encontrada.");
     }
 
     if (item.situacao !== options.expectedSituation) {
       throw createHttpError(
         409,
-        `Solicitacao precisa estar com situacao ${options.expectedSituation}.`,
+        `Solicitação precisa estar com situação ${options.expectedSituation}.`,
       );
     }
 

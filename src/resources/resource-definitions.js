@@ -84,6 +84,20 @@ const resources = {
     ],
     requiredOnCreate: ["usuario_id", "nome", "endereco_destino"],
   },
+  chamadosSuporte: {
+    route: "chamados-suporte",
+    tableName: "chamados_suporte",
+    searchableColumns: ["nome_usuario", "email_usuario", "assunto", "mensagem", "situacao"],
+    writableColumns: [
+      "usuario_id",
+      "nome_usuario",
+      "email_usuario",
+      "assunto",
+      "mensagem",
+      "situacao",
+    ],
+    requiredOnCreate: ["assunto", "mensagem"],
+  },
   solicitacoesTransporte: {
     route: "solicitacoes-transporte",
     tableName: "solicitacoes_transporte",

@@ -242,3 +242,22 @@ CREATE TABLE IF NOT EXISTS destinos_favoritos (
     ON UPDATE CASCADE
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS chamados_suporte (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  usuario_id BIGINT UNSIGNED NULL,
+  nome_usuario VARCHAR(160) NULL,
+  email_usuario VARCHAR(160) NULL,
+  assunto VARCHAR(180) NOT NULL,
+  mensagem TEXT NOT NULL,
+  situacao ENUM('ABERTO', 'EM_ANALISE', 'RESOLVIDO') NOT NULL DEFAULT 'ABERTO',
+  criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_chamados_suporte_usuario_id (usuario_id),
+  KEY idx_chamados_suporte_situacao (situacao),
+  CONSTRAINT fk_chamados_suporte_usuario
+    FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+    ON UPDATE CASCADE
+    ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
