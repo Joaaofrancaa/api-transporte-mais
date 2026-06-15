@@ -73,20 +73,6 @@ CREATE TABLE IF NOT EXISTS motoristas (
     ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS veiculos (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  placa VARCHAR(12) NOT NULL,
-  modelo VARCHAR(120) NOT NULL,
-  ano SMALLINT UNSIGNED NULL,
-  quilometragem_atual INT UNSIGNED NOT NULL DEFAULT 0,
-  situacao ENUM('DISPONIVEL', 'EM_SERVICO', 'MANUTENCAO', 'INATIVO') NOT NULL DEFAULT 'DISPONIVEL',
-  ativo BOOLEAN NOT NULL DEFAULT TRUE,
-  criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  UNIQUE KEY uk_veiculos_placa (placa),
-  KEY idx_veiculos_situacao (situacao)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS medicos (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -115,7 +101,6 @@ CREATE TABLE IF NOT EXISTS solicitacoes_transporte (
   solicitante_usuario_id BIGINT UNSIGNED NOT NULL,
   setor_origem_id BIGINT UNSIGNED NOT NULL,
   motorista_id BIGINT UNSIGNED NULL,
-  veiculo_id BIGINT UNSIGNED NULL,
   tipo ENUM('PACIENTE', 'MATERIAL', 'DOCUMENTOS', 'COLETA_EXAMES', 'OUTROS') NOT NULL,
   nome_paciente VARCHAR(160) NULL,
   nome_destino VARCHAR(160) NOT NULL,
@@ -143,7 +128,6 @@ CREATE TABLE IF NOT EXISTS solicitacoes_transporte (
   KEY idx_solicitacoes_transporte_situacao (situacao),
   KEY idx_solicitacoes_transporte_agendado_para (agendado_para),
   KEY idx_solicitacoes_transporte_motorista_id (motorista_id),
-  KEY idx_solicitacoes_transporte_veiculo_id (veiculo_id),
   KEY idx_solicitacoes_transporte_solicitante_usuario_id (solicitante_usuario_id),
   KEY idx_solicitacoes_transporte_setor_origem_id (setor_origem_id),
   CONSTRAINT fk_solicitacoes_solicitante
@@ -156,10 +140,6 @@ CREATE TABLE IF NOT EXISTS solicitacoes_transporte (
     ON DELETE RESTRICT,
   CONSTRAINT fk_solicitacoes_motorista
     FOREIGN KEY (motorista_id) REFERENCES motoristas (id)
-    ON UPDATE CASCADE
-    ON DELETE SET NULL,
-  CONSTRAINT fk_solicitacoes_veiculo
-    FOREIGN KEY (veiculo_id) REFERENCES veiculos (id)
     ON UPDATE CASCADE
     ON DELETE SET NULL,
   CONSTRAINT ck_solicitacoes_paciente

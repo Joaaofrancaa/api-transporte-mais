@@ -49,7 +49,6 @@ function accept(request, response, next) {
     data: (body) => ({
       aceito_em: getActionTimestamp(),
       motorista_id: body.motorista_id,
-      veiculo_id: body.veiculo_id,
     }),
   });
 }

@@ -36,13 +36,6 @@ const resources = {
     ],
     requiredOnCreate: ["nome", "cpf", "numero_cnh", "categoria_cnh", "validade_cnh"],
   },
-  veiculos: {
-    route: "veiculos",
-    tableName: "veiculos",
-    searchableColumns: ["placa", "modelo"],
-    writableColumns: ["placa", "modelo", "ano", "quilometragem_atual", "situacao", "ativo"],
-    requiredOnCreate: ["placa", "modelo"],
-  },
   setores: {
     route: "setores",
     tableName: "setores",
@@ -109,7 +102,6 @@ const resources = {
       "solicitante_usuario_id",
       "setor_origem_id",
       "motorista_id",
-      "veiculo_id",
       "tipo",
       "nome_paciente",
       "nome_destino",

@@ -51,13 +51,6 @@ ON DUPLICATE KEY UPDATE
   nome = VALUES(nome),
   situacao = VALUES(situacao);
 
-INSERT INTO veiculos (placa, modelo, ano, quilometragem_atual) VALUES
-  ('HSP-4D22', 'Fiat Ducato Ambulancia', 2021, 84230),
-  ('MED-8A91', 'Renault Master', 2020, 109870),
-  ('DOC-2B77', 'Chevrolet Spin', 2022, 46210)
-ON DUPLICATE KEY UPDATE
-  modelo = VALUES(modelo),
-  quilometragem_atual = VALUES(quilometragem_atual);
 
 INSERT INTO medicos (nome) VALUES
   ('DRA. RENATA ALVES'),
@@ -79,7 +72,6 @@ INSERT INTO solicitacoes_transporte (
   solicitante_usuario_id,
   setor_origem_id,
   motorista_id,
-  veiculo_id,
   tipo,
   nome_paciente,
   nome_destino,
@@ -127,7 +119,6 @@ INSERT INTO solicitacoes_transporte (
     (SELECT id FROM usuarios WHERE nome_usuario = 'MARINA.TORRES'),
     (SELECT id FROM setores WHERE nome = 'LABORATORIO'),
     (SELECT id FROM motoristas WHERE cpf = '321.654.987-43'),
-    (SELECT id FROM veiculos WHERE placa = 'DOC-2B77'),
     'COLETA_EXAMES',
     NULL,
     'UNIDADE SATELITE NORTE',
@@ -151,7 +142,6 @@ INSERT INTO solicitacoes_transporte (
     (SELECT id FROM usuarios WHERE nome_usuario = 'MARINA.TORRES'),
     (SELECT id FROM setores WHERE nome = 'FARMACIA'),
     (SELECT id FROM motoristas WHERE cpf = '987.654.321-00'),
-    (SELECT id FROM veiculos WHERE placa = 'HSP-4D22'),
     'MATERIAL',
     NULL,
     'CENTRO CIRURGICO',
@@ -173,7 +163,6 @@ INSERT INTO solicitacoes_transporte (
 ON DUPLICATE KEY UPDATE
   situacao = VALUES(situacao),
   motorista_id = VALUES(motorista_id),
-  veiculo_id = VALUES(veiculo_id),
   observacoes_atendimento = VALUES(observacoes_atendimento);
 
 INSERT INTO acompanhamentos_ambulancia (
