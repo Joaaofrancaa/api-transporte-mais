@@ -23,12 +23,22 @@ function normalizeOffset(value) {
   return offset;
 }
 
-function createCrudRepository({ tableName, searchableColumns = [], defaultOrder = "id DESC" }) {
+function createCrudRepository({
+  tableName,
+  searchableColumns = [],
+  defaultOrder = "id DESC",
+  tenantColumn = "",
+}) {
   const pool = () => getDatabasePool();
 
-  async function list({ search, limit, offset } = {}) {
+  async function list({ search, limit, offset, instituicao_id } = {}) {
     const values = [];
     const where = [];
+
+    if (tenantColumn && instituicao_id) {
+      where.push(`${tenantColumn} = ?`);
+      values.push(instituicao_id);
+    }
 
     if (search && searchableColumns.length) {
       where.push(

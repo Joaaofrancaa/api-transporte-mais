@@ -2,11 +2,20 @@ const { sendSupportTicketEmail } = require("./support-ticket-hooks");
 const { hashPasswordField } = require("../utils/password-hash");
 
 const resources = {
+  instituicoes: {
+    route: "instituicoes",
+    tableName: "instituicoes",
+    searchableColumns: ["nome", "cnpj"],
+    writableColumns: ["nome", "cnpj", "ativo"],
+    requiredOnCreate: ["nome"],
+  },
   usuarios: {
     route: "usuarios",
     tableName: "usuarios",
+    tenantColumn: "instituicao_id",
     searchableColumns: ["nome", "nome_usuario", "cpf", "email"],
     writableColumns: [
+      "instituicao_id",
       "setor_id",
       "nome",
       "nome_usuario",
@@ -17,7 +26,15 @@ const resources = {
       "senha_hash",
       "ativo",
     ],
-    requiredOnCreate: ["nome", "nome_usuario", "cpf", "email", "perfil", "senha_hash"],
+    requiredOnCreate: [
+      "instituicao_id",
+      "nome",
+      "nome_usuario",
+      "cpf",
+      "email",
+      "perfil",
+      "senha_hash",
+    ],
     hiddenColumns: ["senha_hash"],
     beforeCreate: (data) => hashPasswordField(data),
     beforeUpdate: (data) => hashPasswordField(data),
@@ -25,8 +42,10 @@ const resources = {
   motoristas: {
     route: "motoristas",
     tableName: "motoristas",
+    tenantColumn: "instituicao_id",
     searchableColumns: ["nome", "cpf", "numero_cnh"],
     writableColumns: [
+      "instituicao_id",
       "usuario_id",
       "nome",
       "cpf",
@@ -37,41 +56,54 @@ const resources = {
       "situacao",
       "ativo",
     ],
-    requiredOnCreate: ["nome", "cpf", "numero_cnh", "categoria_cnh", "validade_cnh"],
+    requiredOnCreate: [
+      "instituicao_id",
+      "nome",
+      "cpf",
+      "numero_cnh",
+      "categoria_cnh",
+      "validade_cnh",
+    ],
   },
   setores: {
     route: "setores",
     tableName: "setores",
+    tenantColumn: "instituicao_id",
     searchableColumns: ["nome"],
-    writableColumns: ["nome", "ativo"],
-    requiredOnCreate: ["nome"],
+    writableColumns: ["instituicao_id", "nome", "ativo"],
+    requiredOnCreate: ["instituicao_id", "nome"],
   },
   unidades: {
     route: "unidades",
     tableName: "unidades",
+    tenantColumn: "instituicao_id",
     searchableColumns: ["nome"],
-    writableColumns: ["nome", "ativo"],
-    requiredOnCreate: ["nome"],
+    writableColumns: ["instituicao_id", "nome", "ativo"],
+    requiredOnCreate: ["instituicao_id", "nome"],
   },
   medicos: {
     route: "medicos",
     tableName: "medicos",
+    tenantColumn: "instituicao_id",
     searchableColumns: ["nome"],
-    writableColumns: ["nome", "ativo"],
-    requiredOnCreate: ["nome"],
+    writableColumns: ["instituicao_id", "nome", "ativo"],
+    requiredOnCreate: ["instituicao_id", "nome"],
   },
   acompanhantes: {
     route: "acompanhantes",
     tableName: "acompanhantes",
+    tenantColumn: "instituicao_id",
     searchableColumns: ["nome", "tipo"],
-    writableColumns: ["nome", "tipo", "ativo"],
-    requiredOnCreate: ["nome", "tipo"],
+    writableColumns: ["instituicao_id", "nome", "tipo", "ativo"],
+    requiredOnCreate: ["instituicao_id", "nome", "tipo"],
   },
   destinosFavoritos: {
     route: "destinos-favoritos",
     tableName: "destinos_favoritos",
+    tenantColumn: "instituicao_id",
     searchableColumns: ["nome", "endereco_destino"],
     writableColumns: [
+      "instituicao_id",
       "usuario_id",
       "nome",
       "endereco_destino",
@@ -80,13 +112,15 @@ const resources = {
       "longitude",
       "consulta_rota",
     ],
-    requiredOnCreate: ["usuario_id", "nome", "endereco_destino"],
+    requiredOnCreate: ["instituicao_id", "usuario_id", "nome", "endereco_destino"],
   },
   chamadosSuporte: {
     route: "chamados-suporte",
     tableName: "chamados_suporte",
+    tenantColumn: "instituicao_id",
     searchableColumns: ["nome_usuario", "email_usuario", "assunto", "mensagem", "situacao"],
     writableColumns: [
+      "instituicao_id",
       "usuario_id",
       "nome_usuario",
       "email_usuario",
@@ -100,8 +134,10 @@ const resources = {
   solicitacoesTransporte: {
     route: "solicitacoes-transporte",
     tableName: "solicitacoes_transporte",
+    tenantColumn: "instituicao_id",
     searchableColumns: ["nome_paciente", "nome_destino", "endereco_destino"],
     writableColumns: [
+      "instituicao_id",
       "solicitante_usuario_id",
       "setor_origem_id",
       "motorista_id",
@@ -128,6 +164,7 @@ const resources = {
       "observacoes_atendimento",
     ],
     requiredOnCreate: [
+      "instituicao_id",
       "solicitante_usuario_id",
       "setor_origem_id",
       "tipo",
@@ -140,8 +177,10 @@ const resources = {
   acompanhamentosAmbulancia: {
     route: "acompanhamentos-ambulancia",
     tableName: "acompanhamentos_ambulancia",
+    tenantColumn: "instituicao_id",
     searchableColumns: ["nome_paciente", "nome_destino", "endereco_destino"],
     writableColumns: [
+      "instituicao_id",
       "unidade_id",
       "setor_id",
       "medico_id",
@@ -163,6 +202,7 @@ const resources = {
       "observacoes",
     ],
     requiredOnCreate: [
+      "instituicao_id",
       "unidade_id",
       "setor_id",
       "tipo",

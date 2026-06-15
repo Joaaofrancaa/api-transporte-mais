@@ -1,20 +1,29 @@
 USE transporte_mais;
 
-INSERT INTO setores (nome) VALUES
-  ('ADMINISTRACAO'),
-  ('ENFERMAGEM'),
-  ('FARMACIA'),
-  ('LABORATORIO'),
-  ('TRANSPORTE'),
-  ('UTI ADULTO'),
-  ('CENTRO CIRURGICO')
+INSERT INTO instituicoes (nome) VALUES
+  ('SANTA CASA DE TUPA'),
+  ('POSTO DE SAUDE DE ARCO IRIS')
 ON DUPLICATE KEY UPDATE nome = VALUES(nome);
 
-INSERT INTO unidades (nome) VALUES
-  ('UNIDADE CENTRAL')
+INSERT INTO setores (instituicao_id, nome) VALUES
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'ADMINISTRACAO'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'ENFERMAGEM'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'FARMACIA'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'LABORATORIO'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'TRANSPORTE'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'UTI ADULTO'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'CENTRO CIRURGICO'),
+  ((SELECT id FROM instituicoes WHERE nome = 'POSTO DE SAUDE DE ARCO IRIS'), 'ADMINISTRACAO'),
+  ((SELECT id FROM instituicoes WHERE nome = 'POSTO DE SAUDE DE ARCO IRIS'), 'TRANSPORTE')
+ON DUPLICATE KEY UPDATE nome = VALUES(nome);
+
+INSERT INTO unidades (instituicao_id, nome) VALUES
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'UNIDADE CENTRAL'),
+  ((SELECT id FROM instituicoes WHERE nome = 'POSTO DE SAUDE DE ARCO IRIS'), 'POSTO DE SAUDE DE ARCO IRIS')
 ON DUPLICATE KEY UPDATE nome = VALUES(nome);
 
 INSERT INTO usuarios (
+  instituicao_id,
   setor_id,
   nome,
   nome_usuario,
@@ -24,16 +33,20 @@ INSERT INTO usuarios (
   perfil,
   senha_hash
 ) VALUES
-  ((SELECT id FROM setores WHERE nome = 'ENFERMAGEM'), 'Ana Paula Ribeiro', 'ANA.RIBEIRO', '123.456.789-10', 'ana.ribeiro@hospital.local', '(11) 98822-1045', 'SOLICITANTE', 'pbkdf2$sha256$120000$7704e5e18eb31f5e3b2f22a3327cbc1a$4c75faa1a66abc340f24bf0ca38f3648844bc80c1a1ab9cdac6dbb1c03adcb2c'),
-  ((SELECT id FROM setores WHERE nome = 'TRANSPORTE'), 'Roberto Lima', 'ROBERTO.LIMA', '987.654.321-00', 'roberto.lima@hospital.local', '(11) 97742-6630', 'MOTORISTA', 'pbkdf2$sha256$120000$7704e5e18eb31f5e3b2f22a3327cbc1a$4c75faa1a66abc340f24bf0ca38f3648844bc80c1a1ab9cdac6dbb1c03adcb2c'),
-  ((SELECT id FROM setores WHERE nome = 'ADMINISTRACAO'), 'Marina Torres', 'MARINA.TORRES', '456.123.789-55', 'marina.torres@hospital.local', '(11) 96628-8401', 'ADMINISTRADOR', 'pbkdf2$sha256$120000$7704e5e18eb31f5e3b2f22a3327cbc1a$4c75faa1a66abc340f24bf0ca38f3648844bc80c1a1ab9cdac6dbb1c03adcb2c')
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), (SELECT id FROM setores WHERE nome = 'ENFERMAGEM' AND instituicao_id = (SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA')), 'Ana Paula Ribeiro', 'ANA.RIBEIRO', '123.456.789-10', 'ana.ribeiro@hospital.local', '(11) 98822-1045', 'SOLICITANTE', 'pbkdf2$sha256$120000$7704e5e18eb31f5e3b2f22a3327cbc1a$4c75faa1a66abc340f24bf0ca38f3648844bc80c1a1ab9cdac6dbb1c03adcb2c'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), (SELECT id FROM setores WHERE nome = 'TRANSPORTE' AND instituicao_id = (SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA')), 'Roberto Lima', 'ROBERTO.LIMA', '987.654.321-00', 'roberto.lima@hospital.local', '(11) 97742-6630', 'MOTORISTA', 'pbkdf2$sha256$120000$7704e5e18eb31f5e3b2f22a3327cbc1a$4c75faa1a66abc340f24bf0ca38f3648844bc80c1a1ab9cdac6dbb1c03adcb2c'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), (SELECT id FROM setores WHERE nome = 'ADMINISTRACAO' AND instituicao_id = (SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA')), 'Marina Torres', 'MARINA.TORRES', '456.123.789-55', 'marina.torres@hospital.local', '(11) 96628-8401', 'ADMINISTRADOR', 'pbkdf2$sha256$120000$7704e5e18eb31f5e3b2f22a3327cbc1a$4c75faa1a66abc340f24bf0ca38f3648844bc80c1a1ab9cdac6dbb1c03adcb2c'),
+  ((SELECT id FROM instituicoes WHERE nome = 'POSTO DE SAUDE DE ARCO IRIS'), (SELECT id FROM setores WHERE nome = 'ADMINISTRACAO' AND instituicao_id = (SELECT id FROM instituicoes WHERE nome = 'POSTO DE SAUDE DE ARCO IRIS')), 'Administrador Arco Iris', 'ADM.ARCOIRIS', '111.111.111-11', 'admin.arcoiris@posto.local', '(14) 00000-0000', 'ADMINISTRADOR', 'pbkdf2$sha256$120000$7704e5e18eb31f5e3b2f22a3327cbc1a$4c75faa1a66abc340f24bf0ca38f3648844bc80c1a1ab9cdac6dbb1c03adcb2c'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), (SELECT id FROM setores WHERE nome = 'ADMINISTRACAO' AND instituicao_id = (SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA')), 'Administrador Master', 'MASTER', '999.999.999-99', 'master@transporte.local', '(14) 00000-0000', 'MASTER', 'pbkdf2$sha256$120000$7704e5e18eb31f5e3b2f22a3327cbc1a$4c75faa1a66abc340f24bf0ca38f3648844bc80c1a1ab9cdac6dbb1c03adcb2c')
 ON DUPLICATE KEY UPDATE
   nome = VALUES(nome),
+  instituicao_id = VALUES(instituicao_id),
   perfil = VALUES(perfil),
   setor_id = VALUES(setor_id),
   senha_hash = VALUES(senha_hash);
 
 INSERT INTO motoristas (
+  instituicao_id,
   usuario_id,
   nome,
   cpf,
@@ -43,31 +56,32 @@ INSERT INTO motoristas (
   telefone,
   situacao
 ) VALUES
-  ((SELECT id FROM usuarios WHERE nome_usuario = 'ROBERTO.LIMA'), 'Roberto Lima', '987.654.321-00', '04829381720', 'D', '2027-08-10', '(11) 97742-6630', 'DISPONIVEL'),
-  (NULL, 'Claudia Nunes', '321.654.987-43', '03847592011', 'B', '2026-12-22', '(11) 97590-2211', 'EM_SERVICO'),
-  (NULL, 'Paulo Henrique', '654.987.321-88', '05284739100', 'D', '2028-04-04', '(11) 98843-7780', 'DISPONIVEL')
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), (SELECT id FROM usuarios WHERE nome_usuario = 'ROBERTO.LIMA'), 'Roberto Lima', '987.654.321-00', '04829381720', 'D', '2027-08-10', '(11) 97742-6630', 'DISPONIVEL'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), NULL, 'Claudia Nunes', '321.654.987-43', '03847592011', 'B', '2026-12-22', '(11) 97590-2211', 'EM_SERVICO'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), NULL, 'Paulo Henrique', '654.987.321-88', '05284739100', 'D', '2028-04-04', '(11) 98843-7780', 'DISPONIVEL')
 ON DUPLICATE KEY UPDATE
   nome = VALUES(nome),
   situacao = VALUES(situacao);
 
 
-INSERT INTO medicos (nome) VALUES
-  ('DRA. RENATA ALVES'),
-  ('DR. GUSTAVO MELO'),
-  ('DRA. HELENA DIAS'),
-  ('DR. MATEUS ROCHA'),
-  ('DRA. LIVIA CAMPOS')
+INSERT INTO medicos (instituicao_id, nome) VALUES
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'DRA. RENATA ALVES'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'DR. GUSTAVO MELO'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'DRA. HELENA DIAS'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'DR. MATEUS ROCHA'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'DRA. LIVIA CAMPOS')
 ON DUPLICATE KEY UPDATE nome = VALUES(nome);
 
-INSERT INTO acompanhantes (nome, tipo) VALUES
-  ('MARCELA SOUZA', 'ENFERMEIRO'),
-  ('JOAO VICTOR', 'TECNICO'),
-  ('CAMILA RAMOS', 'AUXILIAR'),
-  ('RAFAELA MORAIS', 'ENFERMEIRO')
+INSERT INTO acompanhantes (instituicao_id, nome, tipo) VALUES
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'MARCELA SOUZA', 'ENFERMEIRO'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'JOAO VICTOR', 'TECNICO'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'CAMILA RAMOS', 'AUXILIAR'),
+  ((SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'), 'RAFAELA MORAIS', 'ENFERMEIRO')
 ON DUPLICATE KEY UPDATE nome = VALUES(nome);
 
 INSERT INTO solicitacoes_transporte (
   id,
+  instituicao_id,
   solicitante_usuario_id,
   setor_origem_id,
   motorista_id,
@@ -91,6 +105,7 @@ INSERT INTO solicitacoes_transporte (
 ) VALUES
   (
     1001,
+    (SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'),
     (SELECT id FROM usuarios WHERE nome_usuario = 'ANA.RIBEIRO'),
     (SELECT id FROM setores WHERE nome = 'UTI ADULTO'),
     NULL,
@@ -115,6 +130,7 @@ INSERT INTO solicitacoes_transporte (
   ),
   (
     1002,
+    (SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'),
     (SELECT id FROM usuarios WHERE nome_usuario = 'MARINA.TORRES'),
     (SELECT id FROM setores WHERE nome = 'LABORATORIO'),
     (SELECT id FROM motoristas WHERE cpf = '321.654.987-43'),
@@ -138,6 +154,7 @@ INSERT INTO solicitacoes_transporte (
   ),
   (
     1003,
+    (SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'),
     (SELECT id FROM usuarios WHERE nome_usuario = 'MARINA.TORRES'),
     (SELECT id FROM setores WHERE nome = 'FARMACIA'),
     (SELECT id FROM motoristas WHERE cpf = '987.654.321-00'),
@@ -166,6 +183,7 @@ ON DUPLICATE KEY UPDATE
 
 INSERT INTO acompanhamentos_ambulancia (
   id,
+  instituicao_id,
   unidade_id,
   setor_id,
   medico_id,
@@ -188,6 +206,7 @@ INSERT INTO acompanhamentos_ambulancia (
 ) VALUES
   (
     1,
+    (SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'),
     (SELECT id FROM unidades WHERE nome = 'UNIDADE CENTRAL'),
     (SELECT id FROM setores WHERE nome = 'UTI ADULTO'),
     (SELECT id FROM medicos WHERE nome = 'DRA. RENATA ALVES'),
@@ -210,6 +229,7 @@ INSERT INTO acompanhamentos_ambulancia (
   ),
   (
     2,
+    (SELECT id FROM instituicoes WHERE nome = 'SANTA CASA DE TUPA'),
     (SELECT id FROM unidades WHERE nome = 'UNIDADE CENTRAL'),
     (SELECT id FROM setores WHERE nome = 'ENFERMAGEM'),
     NULL,

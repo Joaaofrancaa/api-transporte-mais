@@ -4,35 +4,58 @@ CREATE DATABASE IF NOT EXISTS transporte_mais
 
 USE transporte_mais;
 
+CREATE TABLE IF NOT EXISTS instituicoes (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  nome VARCHAR(160) NOT NULL,
+  cnpj VARCHAR(18) NULL,
+  ativo BOOLEAN NOT NULL DEFAULT TRUE,
+  criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_instituicoes_nome (nome),
+  UNIQUE KEY uk_instituicoes_cnpj (cnpj)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS setores (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  instituicao_id BIGINT UNSIGNED NOT NULL,
   nome VARCHAR(120) NOT NULL,
   ativo BOOLEAN NOT NULL DEFAULT TRUE,
   criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uk_setores_nome (nome)
+  UNIQUE KEY uk_setores_instituicao_nome (instituicao_id, nome),
+  CONSTRAINT fk_setores_instituicao
+    FOREIGN KEY (instituicao_id) REFERENCES instituicoes (id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS unidades (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  instituicao_id BIGINT UNSIGNED NOT NULL,
   nome VARCHAR(120) NOT NULL,
   ativo BOOLEAN NOT NULL DEFAULT TRUE,
   criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uk_unidades_nome (nome)
+  UNIQUE KEY uk_unidades_instituicao_nome (instituicao_id, nome),
+  CONSTRAINT fk_unidades_instituicao
+    FOREIGN KEY (instituicao_id) REFERENCES instituicoes (id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS usuarios (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  instituicao_id BIGINT UNSIGNED NOT NULL,
   setor_id BIGINT UNSIGNED NULL,
   nome VARCHAR(160) NOT NULL,
   nome_usuario VARCHAR(80) NOT NULL,
   cpf VARCHAR(14) NOT NULL,
   email VARCHAR(160) NOT NULL,
   telefone VARCHAR(30) NULL,
-  perfil ENUM('SOLICITANTE', 'MOTORISTA', 'ADMINISTRADOR') NOT NULL,
+  perfil ENUM('SOLICITANTE', 'MOTORISTA', 'ADMINISTRADOR', 'MASTER') NOT NULL,
   senha_hash VARCHAR(255) NOT NULL,
   ativo BOOLEAN NOT NULL DEFAULT TRUE,
   criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -41,7 +64,12 @@ CREATE TABLE IF NOT EXISTS usuarios (
   UNIQUE KEY uk_usuarios_nome_usuario (nome_usuario),
   UNIQUE KEY uk_usuarios_cpf (cpf),
   UNIQUE KEY uk_usuarios_email (email),
+  KEY idx_usuarios_instituicao_id (instituicao_id),
   KEY idx_usuarios_setor_id (setor_id),
+  CONSTRAINT fk_usuarios_instituicao
+    FOREIGN KEY (instituicao_id) REFERENCES instituicoes (id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT,
   CONSTRAINT fk_usuarios_setor
     FOREIGN KEY (setor_id) REFERENCES setores (id)
     ON UPDATE CASCADE
@@ -50,6 +78,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
 
 CREATE TABLE IF NOT EXISTS motoristas (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  instituicao_id BIGINT UNSIGNED NOT NULL,
   usuario_id BIGINT UNSIGNED NULL,
   nome VARCHAR(160) NOT NULL,
   cpf VARCHAR(14) NOT NULL,
@@ -65,7 +94,12 @@ CREATE TABLE IF NOT EXISTS motoristas (
   UNIQUE KEY uk_motoristas_usuario_id (usuario_id),
   UNIQUE KEY uk_motoristas_cpf (cpf),
   UNIQUE KEY uk_motoristas_numero_cnh (numero_cnh),
+  KEY idx_motoristas_instituicao_id (instituicao_id),
   KEY idx_motoristas_situacao (situacao),
+  CONSTRAINT fk_motoristas_instituicao
+    FOREIGN KEY (instituicao_id) REFERENCES instituicoes (id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT,
   CONSTRAINT fk_motoristas_usuario
     FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
     ON UPDATE CASCADE
@@ -75,28 +109,39 @@ CREATE TABLE IF NOT EXISTS motoristas (
 
 CREATE TABLE IF NOT EXISTS medicos (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  instituicao_id BIGINT UNSIGNED NOT NULL,
   nome VARCHAR(160) NOT NULL,
   ativo BOOLEAN NOT NULL DEFAULT TRUE,
   criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uk_medicos_nome (nome)
+  UNIQUE KEY uk_medicos_instituicao_nome (instituicao_id, nome),
+  CONSTRAINT fk_medicos_instituicao
+    FOREIGN KEY (instituicao_id) REFERENCES instituicoes (id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS acompanhantes (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  instituicao_id BIGINT UNSIGNED NOT NULL,
   nome VARCHAR(160) NOT NULL,
   tipo ENUM('ENFERMEIRO', 'TECNICO', 'AUXILIAR') NOT NULL,
   ativo BOOLEAN NOT NULL DEFAULT TRUE,
   criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uk_acompanhantes_nome_tipo (nome, tipo),
-  KEY idx_acompanhantes_nome (nome)
+  UNIQUE KEY uk_acompanhantes_instituicao_nome_tipo (instituicao_id, nome, tipo),
+  KEY idx_acompanhantes_nome (nome),
+  CONSTRAINT fk_acompanhantes_instituicao
+    FOREIGN KEY (instituicao_id) REFERENCES instituicoes (id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS solicitacoes_transporte (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  instituicao_id BIGINT UNSIGNED NOT NULL,
   solicitante_usuario_id BIGINT UNSIGNED NOT NULL,
   setor_origem_id BIGINT UNSIGNED NOT NULL,
   motorista_id BIGINT UNSIGNED NULL,
@@ -125,10 +170,15 @@ CREATE TABLE IF NOT EXISTS solicitacoes_transporte (
   atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_solicitacoes_transporte_situacao (situacao),
+  KEY idx_solicitacoes_transporte_instituicao_id (instituicao_id),
   KEY idx_solicitacoes_transporte_agendado_para (agendado_para),
   KEY idx_solicitacoes_transporte_motorista_id (motorista_id),
   KEY idx_solicitacoes_transporte_solicitante_usuario_id (solicitante_usuario_id),
   KEY idx_solicitacoes_transporte_setor_origem_id (setor_origem_id),
+  CONSTRAINT fk_solicitacoes_instituicao
+    FOREIGN KEY (instituicao_id) REFERENCES instituicoes (id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT,
   CONSTRAINT fk_solicitacoes_solicitante
     FOREIGN KEY (solicitante_usuario_id) REFERENCES usuarios (id)
     ON UPDATE CASCADE
@@ -151,6 +201,7 @@ CREATE TABLE IF NOT EXISTS solicitacoes_transporte (
 
 CREATE TABLE IF NOT EXISTS acompanhamentos_ambulancia (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  instituicao_id BIGINT UNSIGNED NOT NULL,
   unidade_id BIGINT UNSIGNED NOT NULL,
   setor_id BIGINT UNSIGNED NOT NULL,
   medico_id BIGINT UNSIGNED NULL,
@@ -173,11 +224,16 @@ CREATE TABLE IF NOT EXISTS acompanhamentos_ambulancia (
   criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
+  KEY idx_acompanhamentos_instituicao_id (instituicao_id),
   KEY idx_acompanhamentos_tipo (tipo),
   KEY idx_acompanhamentos_saida_em (saida_em),
   KEY idx_acompanhamentos_motorista_id (motorista_id),
   KEY idx_acompanhamentos_unidade_id (unidade_id),
   KEY idx_acompanhamentos_setor_id (setor_id),
+  CONSTRAINT fk_acompanhamentos_instituicao
+    FOREIGN KEY (instituicao_id) REFERENCES instituicoes (id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT,
   CONSTRAINT fk_acompanhamentos_unidade
     FOREIGN KEY (unidade_id) REFERENCES unidades (id)
     ON UPDATE CASCADE
@@ -204,6 +260,7 @@ CREATE TABLE IF NOT EXISTS acompanhamentos_ambulancia (
 
 CREATE TABLE IF NOT EXISTS destinos_favoritos (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  instituicao_id BIGINT UNSIGNED NOT NULL,
   usuario_id BIGINT UNSIGNED NOT NULL,
   nome VARCHAR(160) NOT NULL,
   endereco_destino TEXT NOT NULL,
@@ -214,8 +271,13 @@ CREATE TABLE IF NOT EXISTS destinos_favoritos (
   criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
+  KEY idx_destinos_favoritos_instituicao_id (instituicao_id),
   KEY idx_destinos_favoritos_usuario_id (usuario_id),
-  UNIQUE KEY uk_destinos_favoritos_usuario_endereco (usuario_id, endereco_destino(180), numero_destino),
+  UNIQUE KEY uk_destinos_favoritos_usuario_endereco (instituicao_id, usuario_id, endereco_destino(180), numero_destino),
+  CONSTRAINT fk_destinos_favoritos_instituicao
+    FOREIGN KEY (instituicao_id) REFERENCES instituicoes (id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT,
   CONSTRAINT fk_destinos_favoritos_usuario
     FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
     ON UPDATE CASCADE
@@ -224,6 +286,7 @@ CREATE TABLE IF NOT EXISTS destinos_favoritos (
 
 CREATE TABLE IF NOT EXISTS chamados_suporte (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  instituicao_id BIGINT UNSIGNED NULL,
   usuario_id BIGINT UNSIGNED NULL,
   nome_usuario VARCHAR(160) NULL,
   email_usuario VARCHAR(160) NULL,
@@ -233,8 +296,13 @@ CREATE TABLE IF NOT EXISTS chamados_suporte (
   criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
+  KEY idx_chamados_suporte_instituicao_id (instituicao_id),
   KEY idx_chamados_suporte_usuario_id (usuario_id),
   KEY idx_chamados_suporte_situacao (situacao),
+  CONSTRAINT fk_chamados_suporte_instituicao
+    FOREIGN KEY (instituicao_id) REFERENCES instituicoes (id)
+    ON UPDATE CASCADE
+    ON DELETE SET NULL,
   CONSTRAINT fk_chamados_suporte_usuario
     FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
     ON UPDATE CASCADE

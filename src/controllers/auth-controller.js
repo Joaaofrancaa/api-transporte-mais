@@ -53,6 +53,10 @@ function getProfileAlias(identifier) {
     return "ADMINISTRADOR";
   }
 
+  if (normalizedIdentifier === "MASTER") {
+    return "MASTER";
+  }
+
   return "";
 }
 
@@ -71,6 +75,8 @@ async function login(request, response, next) {
       `
         SELECT
           u.id,
+          u.instituicao_id,
+          i.nome AS instituicao_nome,
           u.setor_id,
           s.nome AS setor_nome,
           u.nome,
@@ -82,6 +88,7 @@ async function login(request, response, next) {
           u.senha_hash,
           u.ativo
         FROM usuarios u
+        LEFT JOIN instituicoes i ON i.id = u.instituicao_id
         LEFT JOIN setores s ON s.id = u.setor_id
         WHERE u.ativo = TRUE
           AND (
@@ -109,6 +116,8 @@ async function login(request, response, next) {
     response.json({
       data: {
         id: user.id,
+        instituicao_id: user.instituicao_id,
+        instituicao_nome: user.instituicao_nome,
         name: user.nome,
         username: user.nome_usuario,
         cpf: user.cpf,
@@ -119,6 +128,7 @@ async function login(request, response, next) {
           SOLICITANTE: "Solicitante",
           MOTORISTA: "Motorista",
           ADMINISTRADOR: "Administrador",
+          MASTER: "Master",
         }[user.perfil] || user.perfil,
       },
     });
