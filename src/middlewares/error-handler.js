@@ -3,16 +3,16 @@ const env = require("../config/env");
 function getDuplicateEntryMessage(error) {
   const duplicateKey = String(error.sqlMessage || error.message || "");
 
-  if (duplicateKey.includes("uk_usuarios_email")) {
-    return "Este e-mail já está cadastrado para outro usuário.";
+  if (duplicateKey.includes("uk_usuarios_email") || duplicateKey.includes("uk_usuarios_instituicao_email")) {
+    return "Este e-mail já está cadastrado nesta instituição.";
   }
 
-  if (duplicateKey.includes("uk_usuarios_cpf")) {
-    return "Este CPF já está cadastrado para outro usuário.";
+  if (duplicateKey.includes("uk_usuarios_cpf") || duplicateKey.includes("uk_usuarios_instituicao_cpf")) {
+    return "Este CPF já está cadastrado nesta instituição.";
   }
 
-  if (duplicateKey.includes("uk_usuarios_nome_usuario")) {
-    return "Este nome de usuário já está cadastrado.";
+  if (duplicateKey.includes("uk_usuarios_nome_usuario") || duplicateKey.includes("uk_usuarios_instituicao_nome_usuario")) {
+    return "Este nome de usuário já está cadastrado nesta instituição.";
   }
 
   if (duplicateKey.includes("uk_setores_nome")) {

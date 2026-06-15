@@ -61,9 +61,9 @@ CREATE TABLE IF NOT EXISTS usuarios (
   criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uk_usuarios_nome_usuario (nome_usuario),
-  UNIQUE KEY uk_usuarios_cpf (cpf),
-  UNIQUE KEY uk_usuarios_email (email),
+  UNIQUE KEY uk_usuarios_instituicao_nome_usuario (instituicao_id, nome_usuario),
+  UNIQUE KEY uk_usuarios_instituicao_cpf (instituicao_id, cpf),
+  UNIQUE KEY uk_usuarios_instituicao_email (instituicao_id, email),
   KEY idx_usuarios_instituicao_id (instituicao_id),
   KEY idx_usuarios_setor_id (setor_id),
   CONSTRAINT fk_usuarios_instituicao

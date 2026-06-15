@@ -97,7 +97,7 @@ async function login(request, response, next) {
             OR REPLACE(REPLACE(REPLACE(u.cpf, '.', ''), '-', ''), ' ', '') = ?
             OR u.perfil = ?
           )
-        LIMIT 1
+        ORDER BY u.id
       `,
       [
         normalizeText(identifier),
@@ -107,9 +107,9 @@ async function login(request, response, next) {
       ],
     );
 
-    const user = rows[0];
+    const user = rows.find((item) => verifyPassword(password, item.senha_hash));
 
-    if (!user || !verifyPassword(password, user.senha_hash)) {
+    if (!user) {
       throw createHttpError(401, "Usuário ou senha inválidos.");
     }
 
