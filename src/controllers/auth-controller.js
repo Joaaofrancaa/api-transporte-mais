@@ -3,6 +3,10 @@ const { randomBytes } = require("node:crypto");
 const { getDatabasePool } = require("../database/connection");
 const { sendEmail } = require("../utils/smtp-mailer");
 const createHttpError = require("../utils/http-error");
+const {
+  hashPassword,
+  verifyPassword,
+} = require("../utils/password-hash");
 
 const RECOVERY_CODE_TTL_MS = 10 * 60 * 1000;
 const recoveryRequests = new Map();
@@ -62,6 +66,7 @@ async function login(request, response, next) {
 
     const pool = getDatabasePool();
     const profileAlias = getProfileAlias(identifier);
+    const cpfDigits = onlyDigits(identifier);
     const [rows] = await pool.query(
       `
         SELECT
@@ -71,7 +76,6 @@ async function login(request, response, next) {
           u.nome,
           u.nome_usuario,
           u.cpf,
-          u.data_nascimento,
           u.email,
           u.telefone,
           u.perfil,
@@ -91,14 +95,14 @@ async function login(request, response, next) {
       [
         normalizeText(identifier),
         normalizeText(identifier),
-        onlyDigits(identifier),
+        cpfDigits,
         profileAlias,
       ],
     );
 
     const user = rows[0];
 
-    if (!user || user.senha_hash !== password) {
+    if (!user || !verifyPassword(password, user.senha_hash)) {
       throw createHttpError(401, "Usuário ou senha inválidos.");
     }
 
@@ -108,7 +112,6 @@ async function login(request, response, next) {
         name: user.nome,
         username: user.nome_usuario,
         cpf: user.cpf,
-        birthDate: user.data_nascimento,
         email: user.email,
         phone: user.telefone,
         sector: user.setor_nome,
@@ -126,6 +129,7 @@ async function login(request, response, next) {
 
 async function findActiveUserByCpf(cpf) {
   const pool = getDatabasePool();
+  const cpfDigits = onlyDigits(cpf);
   const [rows] = await pool.query(
     `
       SELECT id, cpf, email
@@ -134,7 +138,7 @@ async function findActiveUserByCpf(cpf) {
          AND REPLACE(REPLACE(REPLACE(cpf, '.', ''), '-', ''), ' ', '') = ?
        LIMIT 1
     `,
-    [onlyDigits(cpf)],
+    [cpfDigits],
   );
 
   return rows[0] || null;
@@ -254,7 +258,7 @@ async function resetPassword(request, response, next) {
     const pool = getDatabasePool();
     await pool.query(
       "UPDATE usuarios SET senha_hash = ? WHERE id = ?",
-      [String(request.body.nova_senha), validation.recovery.userId],
+      [hashPassword(request.body.nova_senha), validation.recovery.userId],
     );
     recoveryRequests.delete(onlyDigits(request.body.cpf));
 

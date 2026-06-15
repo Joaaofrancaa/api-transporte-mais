@@ -19,15 +19,14 @@ INSERT INTO usuarios (
   nome,
   nome_usuario,
   cpf,
-  data_nascimento,
   email,
   telefone,
   perfil,
   senha_hash
 ) VALUES
-  ((SELECT id FROM setores WHERE nome = 'ENFERMAGEM'), 'Ana Paula Ribeiro', 'ANA.RIBEIRO', '123.456.789-10', '1988-05-14', 'ana.ribeiro@hospital.local', '(11) 98822-1045', 'SOLICITANTE', '123456'),
-  ((SELECT id FROM setores WHERE nome = 'TRANSPORTE'), 'Roberto Lima', 'ROBERTO.LIMA', '987.654.321-00', '1979-11-02', 'roberto.lima@hospital.local', '(11) 97742-6630', 'MOTORISTA', '123456'),
-  ((SELECT id FROM setores WHERE nome = 'ADMINISTRACAO'), 'Marina Torres', 'MARINA.TORRES', '456.123.789-55', '1991-02-20', 'marina.torres@hospital.local', '(11) 96628-8401', 'ADMINISTRADOR', '123456')
+  ((SELECT id FROM setores WHERE nome = 'ENFERMAGEM'), 'Ana Paula Ribeiro', 'ANA.RIBEIRO', '123.456.789-10', 'ana.ribeiro@hospital.local', '(11) 98822-1045', 'SOLICITANTE', 'pbkdf2$sha256$120000$7704e5e18eb31f5e3b2f22a3327cbc1a$4c75faa1a66abc340f24bf0ca38f3648844bc80c1a1ab9cdac6dbb1c03adcb2c'),
+  ((SELECT id FROM setores WHERE nome = 'TRANSPORTE'), 'Roberto Lima', 'ROBERTO.LIMA', '987.654.321-00', 'roberto.lima@hospital.local', '(11) 97742-6630', 'MOTORISTA', 'pbkdf2$sha256$120000$7704e5e18eb31f5e3b2f22a3327cbc1a$4c75faa1a66abc340f24bf0ca38f3648844bc80c1a1ab9cdac6dbb1c03adcb2c'),
+  ((SELECT id FROM setores WHERE nome = 'ADMINISTRACAO'), 'Marina Torres', 'MARINA.TORRES', '456.123.789-55', 'marina.torres@hospital.local', '(11) 96628-8401', 'ADMINISTRADOR', 'pbkdf2$sha256$120000$7704e5e18eb31f5e3b2f22a3327cbc1a$4c75faa1a66abc340f24bf0ca38f3648844bc80c1a1ab9cdac6dbb1c03adcb2c')
 ON DUPLICATE KEY UPDATE
   nome = VALUES(nome),
   perfil = VALUES(perfil),

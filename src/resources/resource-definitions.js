@@ -1,4 +1,5 @@
 const { sendSupportTicketEmail } = require("./support-ticket-hooks");
+const { hashPasswordField } = require("../utils/password-hash");
 
 const resources = {
   usuarios: {
@@ -10,7 +11,6 @@ const resources = {
       "nome",
       "nome_usuario",
       "cpf",
-      "data_nascimento",
       "email",
       "telefone",
       "perfil",
@@ -18,6 +18,9 @@ const resources = {
       "ativo",
     ],
     requiredOnCreate: ["nome", "nome_usuario", "cpf", "email", "perfil", "senha_hash"],
+    hiddenColumns: ["senha_hash"],
+    beforeCreate: (data) => hashPasswordField(data),
+    beforeUpdate: (data) => hashPasswordField(data),
   },
   motoristas: {
     route: "motoristas",
