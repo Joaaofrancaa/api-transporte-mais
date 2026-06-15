@@ -1,6 +1,8 @@
-const { getDatabasePool } = require("../database/connection");
-const createHttpError = require("../utils/http-error");
 const { randomBytes } = require("node:crypto");
+
+const { getDatabasePool } = require("../database/connection");
+const { sendEmail } = require("../utils/smtp-mailer");
+const createHttpError = require("../utils/http-error");
 
 const RECOVERY_CODE_TTL_MS = 10 * 60 * 1000;
 const recoveryRequests = new Map();
@@ -162,6 +164,21 @@ function validateRecovery({ cpf, codigo, token_recuperacao }) {
   return { recovery };
 }
 
+async function sendRecoveryCode(email, code) {
+  await sendEmail({
+    to: email,
+    subject: "Código de recuperação de senha - Transporte+",
+    text: [
+      "Olá.",
+      "",
+      `Seu código de recuperação de senha do Transporte+ é: ${code}`,
+      "",
+      "Este código expira em 10 minutos.",
+      "Se você não solicitou a recuperação, ignore este e-mail.",
+    ].join("\n"),
+  });
+}
+
 async function requestPasswordRecovery(request, response, next) {
   try {
     const user = await findActiveUserByCpf(request.body?.cpf);
@@ -173,6 +190,17 @@ async function requestPasswordRecovery(request, response, next) {
     const code = createCode();
     const token = createToken();
 
+    try {
+      await sendRecoveryCode(user.email, code);
+    } catch (error) {
+      throw createHttpError(
+        503,
+        error.message === "Envio de e-mail não configurado."
+          ? "Envio de e-mail não configurado. Configure o SMTP da API para enviar o código."
+          : "Não foi possível enviar o código por e-mail. Tente novamente.",
+      );
+    }
+
     recoveryRequests.set(onlyDigits(user.cpf), {
       code,
       token,
@@ -180,13 +208,10 @@ async function requestPasswordRecovery(request, response, next) {
       expiresAt: Date.now() + RECOVERY_CODE_TTL_MS,
     });
 
-    console.log(`[recuperacao] CPF ${user.cpf} codigo ${code}`);
-
     response.json({
       data: {
         email_mascarado: maskEmail(user.email),
         token_recuperacao: token,
-        codigo_teste: code,
         expira_em_minutos: 10,
       },
     });

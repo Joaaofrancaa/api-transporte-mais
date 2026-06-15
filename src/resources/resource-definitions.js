@@ -1,3 +1,5 @@
+const { sendSupportTicketEmail } = require("./support-ticket-hooks");
+
 const resources = {
   usuarios: {
     route: "usuarios",
@@ -97,6 +99,7 @@ const resources = {
       "situacao",
     ],
     requiredOnCreate: ["assunto", "mensagem"],
+    afterCreate: sendSupportTicketEmail,
   },
   solicitacoesTransporte: {
     route: "solicitacoes-transporte",

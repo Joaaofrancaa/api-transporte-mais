@@ -54,6 +54,10 @@ function createResourceController(repository, definition) {
       const data = pickWritableData(request.body, definition.writableColumns);
       const item = await repository.create(data);
 
+      if (definition.afterCreate) {
+        await definition.afterCreate(item, request.body || {});
+      }
+
       response.status(201).json({ data: item });
     } catch (error) {
       next(error);
