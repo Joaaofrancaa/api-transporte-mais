@@ -21,6 +21,14 @@ function parseCorsOrigins(value) {
     .filter(Boolean);
 }
 
+function parseBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
+
+  return ["1", "true", "sim", "yes", "on"].includes(String(value).toLowerCase());
+}
+
 const nodeEnv = process.env.NODE_ENV || "development";
 
 module.exports = Object.freeze({
@@ -30,6 +38,12 @@ module.exports = Object.freeze({
   port: parsePositiveInteger(process.env.PORT, 3000),
   corsOrigins: parseCorsOrigins(process.env.CORS_ORIGIN),
   jsonLimit: process.env.JSON_LIMIT || "1mb",
+  trustProxy: parseBoolean(process.env.TRUST_PROXY, false),
+  backup: {
+    enabled: parseBoolean(process.env.BACKUP_AUTOMATICO, true),
+    directory: process.env.BACKUP_DIR || "backups",
+    intervalHours: parsePositiveInteger(process.env.BACKUP_INTERVAL_HOURS, 24),
+  },
   database: {
     host: process.env.DB_HOST || "localhost",
     port: parsePositiveInteger(process.env.DB_PORT, 3306),

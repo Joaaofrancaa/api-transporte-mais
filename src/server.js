@@ -1,6 +1,10 @@
 const createApp = require("./app");
 const env = require("./config/env");
 const { closeDatabasePool } = require("./database/connection");
+const {
+  startAutomaticBackups,
+  stopAutomaticBackups,
+} = require("./services/database-backup");
 
 function startServer() {
   const app = createApp();
@@ -9,6 +13,7 @@ function startServer() {
       `${env.appName} executando na porta ${env.port} em modo ${env.nodeEnv}.`,
     );
   });
+  startAutomaticBackups();
 
   let isShuttingDown = false;
 
@@ -27,6 +32,7 @@ function startServer() {
       }
 
       try {
+        stopAutomaticBackups();
         await closeDatabasePool();
       } catch (databaseError) {
         console.error("Falha ao encerrar o pool do banco.", databaseError);
