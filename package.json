@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
-    "check": "node scripts/check-js.js"
+    "check": "node scripts/check-js.js",
+    "ensure:admin-index": "node scripts/ensure-admin-per-institution-index.js"
   },
   "engines": {
     "node": ">=20"

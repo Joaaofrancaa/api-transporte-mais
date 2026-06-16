@@ -3,6 +3,7 @@ const { Router } = require("express");
 const authController = require("../controllers/auth-controller");
 const createResourceController = require("../controllers/resource-controller-factory");
 const solicitacoesTransporteActions = require("../controllers/solicitacoes-transporte-controller");
+const authentication = require("../middlewares/authentication");
 const createCrudRepository = require("../repositories/crud-repository");
 const resources = require("../resources/resource-definitions");
 const createResourceRoutes = require("./resource-routes-factory");
@@ -24,6 +25,8 @@ router.post(
   authController.validatePasswordRecoveryCode,
 );
 router.post("/autenticacao/redefinir-senha", authController.resetPassword);
+
+router.use(authentication);
 
 for (const definition of Object.values(resources)) {
   const repository = createCrudRepository(definition);

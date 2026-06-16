@@ -50,12 +50,184 @@ function hideResponseColumns(data, hiddenColumns = []) {
   return hideColumns(data, hiddenColumns);
 }
 
+function isMaster(request) {
+  return request.authUser?.perfil === "MASTER";
+}
+
+function isAdmin(request) {
+  return request.authUser?.perfil === "ADMINISTRADOR";
+}
+
+function ensureSameInstitution(request, item, definition) {
+  if (isMaster(request) || !definition.tenantColumn || !item?.[definition.tenantColumn]) {
+    return;
+  }
+
+  if (Number(item[definition.tenantColumn]) !== Number(request.authUser?.instituicao_id)) {
+    throw createHttpError(403, "Acesso negado para esta instituição.");
+  }
+}
+
+function normalizeTenantQuery(request, definition) {
+  if (!definition.tenantColumn || isMaster(request)) {
+    return request.query;
+  }
+
+  return {
+    ...request.query,
+    instituicao_id: request.authUser?.instituicao_id,
+  };
+}
+
+function enforceTenantOnWrite(request, data, definition) {
+  if (!definition.tenantColumn || isMaster(request)) {
+    return data;
+  }
+
+  return {
+    ...data,
+    [definition.tenantColumn]: request.authUser?.instituicao_id,
+  };
+}
+
+function enforceOwnerOnWrite(request, data, definition) {
+  if (
+    definition.route === "solicitacoes-transporte" &&
+    request.authUser?.perfil === "SOLICITANTE"
+  ) {
+    return {
+      ...data,
+      solicitante_usuario_id: request.authUser.id,
+    };
+  }
+
+  if (definition.route === "motoristas" && request.authUser?.perfil === "MOTORISTA") {
+    return {
+      ...data,
+      usuario_id: request.authUser.id,
+    };
+  }
+
+  return data;
+}
+
+function assertResourceAllowed(request, definition, action) {
+  const profile = request.authUser?.perfil;
+
+  if (profile === "MASTER") {
+    if (["list", "find"].includes(action)) {
+      return;
+    }
+
+    if (!["instituicoes", "usuarios"].includes(definition.route)) {
+      throw createHttpError(
+        403,
+        "O ADM master só pode gerenciar instituições e administradores.",
+      );
+    }
+
+    return;
+  }
+
+  if (profile === "ADMINISTRADOR") {
+    if (definition.route === "instituicoes" && !["list", "find"].includes(action)) {
+      throw createHttpError(403, "O administrador não pode gerenciar instituições.");
+    }
+
+    return;
+  }
+
+  if (definition.route === "usuarios" && ["list", "find"].includes(action)) {
+    return;
+  }
+
+  if (definition.route === "usuarios") {
+    throw createHttpError(403, "Acesso negado para gerenciar usuários.");
+  }
+
+  if (action === "list" || action === "find") {
+    return;
+  }
+
+  if (
+    profile === "SOLICITANTE" &&
+    !["solicitacoes-transporte", "chamados-suporte"].includes(definition.route)
+  ) {
+    throw createHttpError(403, "Acesso negado para alterar este cadastro.");
+  }
+
+  if (
+    profile === "MOTORISTA" &&
+    !["motoristas", "chamados-suporte"].includes(definition.route)
+  ) {
+    throw createHttpError(403, "Acesso negado para alterar este cadastro.");
+  }
+}
+
+function assertUserWriteAllowed(request, data, currentItem) {
+  const nextProfile = data.perfil || currentItem?.perfil;
+  const isOwnProfile =
+    currentItem &&
+    Number(currentItem.id) === Number(request.authUser?.id) &&
+    nextProfile === currentItem.perfil;
+
+  if (isOwnProfile) {
+    return;
+  }
+
+  if (isMaster(request)) {
+    if (nextProfile !== "ADMINISTRADOR") {
+      throw createHttpError(403, "O ADM master só pode cadastrar administradores.");
+    }
+
+    return;
+  }
+
+  if (isAdmin(request)) {
+    if (!["SOLICITANTE", "MOTORISTA"].includes(nextProfile)) {
+      throw createHttpError(
+        403,
+        "O administrador só pode cadastrar solicitantes e motoristas.",
+      );
+    }
+
+    return;
+  }
+
+  throw createHttpError(403, "Acesso negado para gerenciar usuários.");
+}
+
+async function assertSingleAdminPerInstitution(repository, data, currentItem) {
+  const nextProfile = data.perfil || currentItem?.perfil;
+  const institutionId = data.instituicao_id || currentItem?.instituicao_id;
+
+  if (nextProfile !== "ADMINISTRADOR" || !institutionId) {
+    return;
+  }
+
+  const admins = await repository.list({
+    instituicao_id: institutionId,
+    limit: 200,
+  });
+  const hasAnotherAdmin = admins.some(
+    (user) =>
+      user.perfil === "ADMINISTRADOR" &&
+      user.ativo !== false &&
+      Number(user.id) !== Number(currentItem?.id),
+  );
+
+  if (hasAnotherAdmin) {
+    throw createHttpError(409, "Esta instituição já possui um administrador cadastrado.");
+  }
+}
+
 function createResourceController(repository, definition) {
   const sanitize = (data) => hideResponseColumns(data, definition.hiddenColumns);
 
   async function list(request, response, next) {
     try {
-      const items = await repository.list(request.query);
+      assertResourceAllowed(request, definition, "list");
+      const items = await repository.list(normalizeTenantQuery(request, definition));
       response.json({ data: sanitize(items) });
     } catch (error) {
       next(error);
@@ -64,12 +236,14 @@ function createResourceController(repository, definition) {
 
   async function findById(request, response, next) {
     try {
+      assertResourceAllowed(request, definition, "find");
       const item = await repository.findById(request.params.id);
 
       if (!item) {
         throw createHttpError(404, "Registro não encontrado.");
       }
 
+      ensureSameInstitution(request, item, definition);
       response.json({ data: sanitize(item) });
     } catch (error) {
       next(error);
@@ -78,12 +252,21 @@ function createResourceController(repository, definition) {
 
   async function create(request, response, next) {
     try {
-      validateRequiredFields(request.body, definition.requiredOnCreate);
-      const data = await applyHook(
+      assertResourceAllowed(request, definition, "create");
+      let data = await applyHook(
         definition.beforeCreate,
         pickWritableData(request.body, definition.writableColumns),
         { request },
       );
+      data = enforceTenantOnWrite(request, data, definition);
+      data = enforceOwnerOnWrite(request, data, definition);
+      validateRequiredFields(data, definition.requiredOnCreate);
+
+      if (definition.route === "usuarios") {
+        assertUserWriteAllowed(request, data);
+        await assertSingleAdminPerInstitution(repository, data);
+      }
+
       const item = await repository.create(data);
 
       if (definition.afterCreate) {
@@ -98,17 +281,27 @@ function createResourceController(repository, definition) {
 
   async function update(request, response, next) {
     try {
+      assertResourceAllowed(request, definition, "update");
       const currentItem = await repository.findById(request.params.id);
 
       if (!currentItem) {
         throw createHttpError(404, "Registro não encontrado.");
       }
 
-      const data = await applyHook(
+      ensureSameInstitution(request, currentItem, definition);
+      let data = await applyHook(
         definition.beforeUpdate,
         pickWritableData(request.body, definition.writableColumns),
         { currentItem, request },
       );
+      data = enforceTenantOnWrite(request, data, definition);
+      data = enforceOwnerOnWrite(request, data, definition);
+
+      if (definition.route === "usuarios") {
+        assertUserWriteAllowed(request, data, currentItem);
+        await assertSingleAdminPerInstitution(repository, data, currentItem);
+      }
+
       const item = await repository.update(request.params.id, data);
 
       response.json({ data: sanitize(item) });
@@ -119,12 +312,14 @@ function createResourceController(repository, definition) {
 
   async function inactivate(request, response, next) {
     try {
+      assertResourceAllowed(request, definition, "inactivate");
       const currentItem = await repository.findById(request.params.id);
 
       if (!currentItem) {
         throw createHttpError(404, "Registro não encontrado.");
       }
 
+      ensureSameInstitution(request, currentItem, definition);
       const item = await repository.inactivate(request.params.id);
       response.json({ data: sanitize(item) });
     } catch (error) {

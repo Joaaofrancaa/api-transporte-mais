@@ -7,6 +7,7 @@ const {
   hashPassword,
   verifyPassword,
 } = require("../utils/password-hash");
+const { signAuthToken } = require("../utils/auth-token");
 
 const RECOVERY_CODE_TTL_MS = 10 * 60 * 1000;
 const recoveryRequests = new Map();
@@ -130,6 +131,7 @@ async function login(request, response, next) {
           ADMINISTRADOR: "Administrador",
           MASTER: "Master",
         }[user.perfil] || user.perfil,
+        token: signAuthToken(user),
       },
     });
   } catch (error) {

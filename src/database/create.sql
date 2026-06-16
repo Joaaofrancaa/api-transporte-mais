@@ -58,12 +58,19 @@ CREATE TABLE IF NOT EXISTS usuarios (
   perfil ENUM('SOLICITANTE', 'MOTORISTA', 'ADMINISTRADOR', 'MASTER') NOT NULL,
   senha_hash VARCHAR(255) NOT NULL,
   ativo BOOLEAN NOT NULL DEFAULT TRUE,
+  administrador_instituicao_id BIGINT UNSIGNED GENERATED ALWAYS AS (
+    CASE
+      WHEN perfil = 'ADMINISTRADOR' AND ativo = TRUE THEN instituicao_id
+      ELSE NULL
+    END
+  ) STORED,
   criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uk_usuarios_instituicao_nome_usuario (instituicao_id, nome_usuario),
   UNIQUE KEY uk_usuarios_instituicao_cpf (instituicao_id, cpf),
   UNIQUE KEY uk_usuarios_instituicao_email (instituicao_id, email),
+  UNIQUE KEY uk_usuarios_um_admin_por_instituicao (administrador_instituicao_id),
   KEY idx_usuarios_instituicao_id (instituicao_id),
   KEY idx_usuarios_setor_id (setor_id),
   CONSTRAINT fk_usuarios_instituicao

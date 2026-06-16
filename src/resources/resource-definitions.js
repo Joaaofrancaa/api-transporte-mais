@@ -1,6 +1,21 @@
 const { sendSupportTicketEmail } = require("./support-ticket-hooks");
 const { hashPasswordField } = require("../utils/password-hash");
 
+function normalizeUserData(data) {
+  if (["ADMINISTRADOR", "MASTER"].includes(data.perfil)) {
+    return {
+      ...data,
+      setor_id: null,
+    };
+  }
+
+  return data;
+}
+
+function prepareUserData(data) {
+  return hashPasswordField(normalizeUserData(data));
+}
+
 const resources = {
   instituicoes: {
     route: "instituicoes",
@@ -36,8 +51,8 @@ const resources = {
       "senha_hash",
     ],
     hiddenColumns: ["senha_hash"],
-    beforeCreate: (data) => hashPasswordField(data),
-    beforeUpdate: (data) => hashPasswordField(data),
+    beforeCreate: prepareUserData,
+    beforeUpdate: prepareUserData,
   },
   motoristas: {
     route: "motoristas",
