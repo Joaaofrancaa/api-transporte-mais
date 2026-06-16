@@ -1,4 +1,6 @@
 const { sendSupportTicketEmail } = require("./support-ticket-hooks");
+const { getDatabasePool } = require("../database/connection");
+const createHttpError = require("../utils/http-error");
 const { hashPasswordField } = require("../utils/password-hash");
 
 function normalizeUserData(data) {
@@ -16,12 +18,30 @@ function prepareUserData(data) {
   return hashPasswordField(normalizeUserData(data));
 }
 
+async function ensureInstitutionUsesTracking(data) {
+  if (!data.instituicao_id) {
+    return data;
+  }
+
+  const pool = getDatabasePool();
+  const [rows] = await pool.query(
+    "SELECT usa_acompanhamento FROM instituicoes WHERE id = ? LIMIT 1",
+    [data.instituicao_id],
+  );
+
+  if (rows[0] && rows[0].usa_acompanhamento === 0) {
+    throw createHttpError(403, "Esta instituição não usa acompanhamentos.");
+  }
+
+  return data;
+}
+
 const resources = {
   instituicoes: {
     route: "instituicoes",
     tableName: "instituicoes",
     searchableColumns: ["nome", "cnpj"],
-    writableColumns: ["nome", "cnpj", "ativo"],
+    writableColumns: ["nome", "cnpj", "usa_acompanhamento", "ativo"],
     requiredOnCreate: ["nome"],
   },
   usuarios: {
@@ -231,6 +251,8 @@ const resources = {
       "saida_em",
       "retorno_em",
     ],
+    beforeCreate: ensureInstitutionUsesTracking,
+    beforeUpdate: ensureInstitutionUsesTracking,
   },
 };
 

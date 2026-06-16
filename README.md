@@ -33,6 +33,7 @@ A API ficara disponivel em `http://localhost:3000`.
 - `npm test`: executa testes automatizados de login, token e permissoes.
 - `npm run verify`: executa sintaxe, seguranca de `.env` e testes.
 - `npm run ensure:admin-index`: cria no banco a protecao de um administrador ativo por instituicao.
+- `npm run ensure:tracking-column`: cria no banco a configuracao de uso da aba acompanhamentos por instituicao.
 
 Os testes de permissao usam por padrao os usuarios locais `KENGI` e `JOAO`
 com senha `123456`. Para outro banco, defina `TEST_ADMIN_LOGIN`,
