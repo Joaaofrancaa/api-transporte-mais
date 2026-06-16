@@ -7,6 +7,9 @@
     "dev": "nodemon index.js",
     "start": "node index.js",
     "check": "node scripts/check-js.js",
+    "security:env": "node scripts/check-env-safety.js",
+    "test": "node --test tests/*.test.js",
+    "verify": "npm run check && npm run security:env && npm test",
     "ensure:admin-index": "node scripts/ensure-admin-per-institution-index.js"
   },
   "engines": {
