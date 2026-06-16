@@ -36,6 +36,41 @@ async function ensureInstitutionUsesTracking(data) {
   return data;
 }
 
+const editableSolicitacaoFields = new Set([
+  "setor_origem_id",
+  "tipo",
+  "nome_paciente",
+  "nome_destino",
+  "endereco_destino",
+  "numero_destino",
+  "latitude_destino",
+  "longitude_destino",
+  "consulta_rota_destino",
+  "agendado_para",
+  "prioridade",
+  "observacoes_solicitante",
+]);
+
+function prepareSolicitacaoUpdate(data, { currentItem, request }) {
+  if (currentItem.situacao !== "PENDENTE") {
+    throw createHttpError(
+      409,
+      "Só é possível editar solicitações que ainda não foram aceitas pelo motorista.",
+    );
+  }
+
+  if (
+    request.authUser?.perfil === "SOLICITANTE" &&
+    Number(currentItem.solicitante_usuario_id) !== Number(request.authUser.id)
+  ) {
+    throw createHttpError(403, "Solicitante só pode editar a própria solicitação.");
+  }
+
+  return Object.fromEntries(
+    Object.entries(data).filter(([column]) => editableSolicitacaoFields.has(column)),
+  );
+}
+
 const resources = {
   instituicoes: {
     route: "instituicoes",
@@ -208,6 +243,7 @@ const resources = {
       "agendado_para",
       "prioridade",
     ],
+    beforeUpdate: prepareSolicitacaoUpdate,
   },
   acompanhamentosAmbulancia: {
     route: "acompanhamentos-ambulancia",
