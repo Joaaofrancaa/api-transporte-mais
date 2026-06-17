@@ -25,7 +25,7 @@ function configureWebPush() {
 
 async function saveSubscription(user, subscription, userAgent = "") {
   if (!subscription?.endpoint || !subscription.keys?.p256dh || !subscription.keys?.auth) {
-    return;
+    return false;
   }
 
   const pool = getDatabasePool();
@@ -54,6 +54,8 @@ async function saveSubscription(user, subscription, userAgent = "") {
       String(userAgent || "").slice(0, 255),
     ],
   );
+
+  return true;
 }
 
 async function removeSubscription(user, endpoint) {
@@ -89,6 +91,27 @@ async function listRecipients(institutionId) {
   return rows;
 }
 
+async function listUserSubscriptions(userId) {
+  const pool = getDatabasePool();
+  const [rows] = await pool.query(
+    `SELECT id, endpoint, p256dh, auth, ativo, atualizado_em
+       FROM push_subscriptions
+      WHERE usuario_id = ?
+      ORDER BY atualizado_em DESC`,
+    [userId],
+  );
+
+  return rows;
+}
+
+function getEndpointHost(endpoint) {
+  try {
+    return new URL(endpoint).host;
+  } catch {
+    return "";
+  }
+}
+
 async function sendToSubscription(row, payload) {
   const subscription = {
     endpoint: row.endpoint,
@@ -100,29 +123,100 @@ async function sendToSubscription(row, payload) {
 
   try {
     await webPush.sendNotification(subscription, JSON.stringify(payload));
+    return { ok: true };
   } catch (error) {
     if ([404, 410].includes(error.statusCode)) {
       await deactivateEndpoint(row.endpoint);
     }
+
+    console.error("Falha ao enviar notificacao push.", {
+      statusCode: error.statusCode,
+      endpointHost: getEndpointHost(row.endpoint),
+      message: error.message,
+      body: error.body,
+    });
+
+    return {
+      ok: false,
+      statusCode: error.statusCode || null,
+      message: error.message,
+    };
   }
 }
 
+async function getUserSubscriptionStatus(user) {
+  const rows = await listUserSubscriptions(user.id);
+  const activeRows = rows.filter((row) => Boolean(row.ativo));
+
+  return {
+    configured: isPushConfigured(),
+    total: rows.length,
+    active: activeRows.length,
+    latestUpdatedAt: rows[0]?.atualizado_em || null,
+  };
+}
+
+async function sendTestNotification(user) {
+  if (!configureWebPush()) {
+    return {
+      configured: false,
+      sent: 0,
+      failed: 0,
+      results: [],
+    };
+  }
+
+  const rows = (await listUserSubscriptions(user.id)).filter((row) => Boolean(row.ativo));
+  const payload = {
+    title: "Teste Transporte+",
+    body: "Notificacao push de teste.",
+    icon: "/app-icon-192.png",
+    badge: "/app-icon-192.png",
+    tag: `teste-push-${user.id}-${Date.now()}`,
+    url: "/",
+    data: {
+      section: "atendimento",
+      test: true,
+    },
+  };
+  const results = await Promise.all(rows.map((row) => sendToSubscription(row, payload)));
+
+  return {
+    configured: true,
+    sent: results.filter((result) => result.ok).length,
+    failed: results.filter((result) => !result.ok).length,
+    results,
+  };
+}
+
 async function notifyNewTransportRequest(request) {
-  if (!configureWebPush() || !request?.instituicao_id) {
+  if (!configureWebPush()) {
+    console.warn("Notificacao push ignorada: VAPID nao configurado.");
+    return;
+  }
+
+  if (!request?.instituicao_id) {
+    console.warn("Notificacao push ignorada: solicitacao sem instituicao.", {
+      requestId: request?.id,
+    });
     return;
   }
 
   const recipients = await listRecipients(request.instituicao_id);
 
   if (!recipients.length) {
+    console.warn("Notificacao push ignorada: nenhum motorista com inscricao ativa.", {
+      institutionId: request.instituicao_id,
+      requestId: request.id,
+    });
     return;
   }
 
   const payload = {
-    title: "Nova solicitação de transporte",
+    title: "Nova solicitacao de transporte",
     body: [request.nome_destino, request.prioridade && `Prioridade: ${request.prioridade}`]
       .filter(Boolean)
-      .join(" • "),
+      .join(" - "),
     icon: "/app-icon-192.png",
     badge: "/app-icon-192.png",
     tag: `solicitacao-transporte-${request.id}`,
@@ -137,8 +231,10 @@ async function notifyNewTransportRequest(request) {
 }
 
 module.exports = {
+  getUserSubscriptionStatus,
   isPushConfigured,
   notifyNewTransportRequest,
   removeSubscription,
   saveSubscription,
+  sendTestNotification,
 };

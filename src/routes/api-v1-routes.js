@@ -32,7 +32,9 @@ router.use(authentication);
 router.use(auditLogger);
 
 router.get("/notificacoes-push/chave-publica", pushSubscriptionsController.getPublicKey);
+router.get("/notificacoes-push/inscricoes/status", pushSubscriptionsController.status);
 router.post("/notificacoes-push/inscricoes", pushSubscriptionsController.subscribe);
+router.post("/notificacoes-push/teste", pushSubscriptionsController.test);
 router.delete("/notificacoes-push/inscricoes", pushSubscriptionsController.unsubscribe);
 
 for (const definition of Object.values(resources)) {
