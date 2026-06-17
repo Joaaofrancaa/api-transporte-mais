@@ -3,7 +3,7 @@ const webPush = require("web-push");
 const env = require("../config/env");
 const { getDatabasePool } = require("../database/connection");
 
-const recipientProfiles = ["ADMINISTRADOR", "MOTORISTA"];
+const recipientProfiles = ["MOTORISTA"];
 
 function isPushConfigured() {
   return Boolean(env.push.publicKey && env.push.privateKey);
@@ -82,8 +82,8 @@ async function listRecipients(institutionId) {
        FROM push_subscriptions
       WHERE instituicao_id = ?
         AND ativo = TRUE
-        AND perfil IN (?, ?)`,
-    [institutionId, ...recipientProfiles],
+        AND perfil = ?`,
+    [institutionId, recipientProfiles[0]],
   );
 
   return rows;
