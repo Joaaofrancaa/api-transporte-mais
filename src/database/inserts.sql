@@ -109,7 +109,6 @@ INSERT INTO solicitacoes_transporte (
     (SELECT id FROM usuarios WHERE nome_usuario = 'ANA.RIBEIRO'),
     (SELECT id FROM setores WHERE nome = 'UTI ADULTO'),
     NULL,
-    NULL,
     'PACIENTE',
     'JOAO MARTINS',
     'HEMODINAMICA',
