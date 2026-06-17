@@ -2,6 +2,7 @@ const { Router } = require("express");
 
 const authController = require("../controllers/auth-controller");
 const createResourceController = require("../controllers/resource-controller-factory");
+const pushSubscriptionsController = require("../controllers/push-subscriptions-controller");
 const solicitacoesTransporteActions = require("../controllers/solicitacoes-transporte-controller");
 const auditLogger = require("../middlewares/audit-logger");
 const authentication = require("../middlewares/authentication");
@@ -29,6 +30,10 @@ router.post("/autenticacao/redefinir-senha", authController.resetPassword);
 
 router.use(authentication);
 router.use(auditLogger);
+
+router.get("/notificacoes-push/chave-publica", pushSubscriptionsController.getPublicKey);
+router.post("/notificacoes-push/inscricoes", pushSubscriptionsController.subscribe);
+router.delete("/notificacoes-push/inscricoes", pushSubscriptionsController.unsubscribe);
 
 for (const definition of Object.values(resources)) {
   const repository = createCrudRepository(definition);

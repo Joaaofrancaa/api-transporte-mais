@@ -13,6 +13,7 @@
     "ensure:admin-index": "node scripts/ensure-admin-per-institution-index.js",
     "ensure:tracking-column": "node scripts/ensure-institution-tracking-column.js",
     "ensure:security": "node scripts/ensure-security-features.js",
+    "ensure:push": "node scripts/ensure-push-subscriptions-table.js",
     "backup:db": "node scripts/backup-database.js"
   },
   "engines": {
@@ -30,7 +31,8 @@
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "morgan": "^1.10.0",
-    "mysql2": "^3.14.1"
+    "mysql2": "^3.14.1",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
