@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   KEY idx_usuarios_setor_id (setor_id),
   CONSTRAINT fk_usuarios_instituicao
     FOREIGN KEY (instituicao_id) REFERENCES instituicoes (id)
-    ON UPDATE CASCADE
+    ON UPDATE RESTRICT
     ON DELETE RESTRICT,
   CONSTRAINT fk_usuarios_setor
     FOREIGN KEY (setor_id) REFERENCES setores (id)

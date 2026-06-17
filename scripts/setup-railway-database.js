@@ -76,6 +76,32 @@ async function keepOnlyOneMaster(connection) {
   }
 }
 
+async function dropExistingTables(connection) {
+  await connection.query("SET FOREIGN_KEY_CHECKS = 0");
+  try {
+    const tables = [
+      "auditoria_logs",
+      "chamados_suporte",
+      "destinos_favoritos",
+      "acompanhamentos_ambulancia",
+      "solicitacoes_transporte",
+      "motoristas",
+      "acompanhantes",
+      "medicos",
+      "unidades",
+      "setores",
+      "usuarios",
+      "instituicoes",
+    ];
+
+    for (const tableName of tables) {
+      await connection.query(`DROP TABLE IF EXISTS ${tableName}`);
+    }
+  } finally {
+    await connection.query("SET FOREIGN_KEY_CHECKS = 1");
+  }
+}
+
 async function main() {
   const databaseUrl = process.argv[2] || process.env.DATABASE_URL || process.env.MYSQL_URL;
 
@@ -99,6 +125,7 @@ async function main() {
   );
 
   try {
+    await dropExistingTables(connection);
     await connection.query(createSql);
     await connection.query(insertsSql);
     await keepOnlyOneMaster(connection);
