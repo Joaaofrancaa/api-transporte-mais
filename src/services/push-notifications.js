@@ -5,6 +5,34 @@ const { getDatabasePool } = require("../database/connection");
 
 const recipientProfiles = ["MOTORISTA"];
 
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getRequestDateKey(request) {
+  const scheduledAt = request?.agendado_para;
+
+  if (!scheduledAt) {
+    return "";
+  }
+
+  if (scheduledAt instanceof Date) {
+    return getLocalDateKey(scheduledAt);
+  }
+
+  return String(scheduledAt).slice(0, 10);
+}
+
+function isRequestDueForNotification(request) {
+  const requestDateKey = getRequestDateKey(request);
+
+  return !requestDateKey || requestDateKey <= getLocalDateKey();
+}
+
 function isPushConfigured() {
   return Boolean(env.push.publicKey && env.push.privateKey);
 }
@@ -196,7 +224,15 @@ async function sendTestNotification(user) {
   };
 }
 
-async function notifyNewTransportRequest(request) {
+async function notifyNewTransportRequest(request, options = {}) {
+  if (options.notificar_motoristas === false || options.suprimir_notificacao === true) {
+    return;
+  }
+
+  if (!isRequestDueForNotification(request)) {
+    return;
+  }
+
   if (!configureWebPush()) {
     console.warn("Notificacao push ignorada: VAPID nao configurado.");
     return;
