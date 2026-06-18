@@ -41,6 +41,43 @@ async function ensureDriverAllowed(request, motoristaId) {
   }
 }
 
+async function ensureDriverAvailableForAccept(request, motoristaId) {
+  if (!motoristaId) {
+    throw createHttpError(400, "Informe o motorista responsavel.");
+  }
+
+  const driver = await driversRepository.findById(motoristaId);
+
+  if (!driver || Number(driver.instituicao_id) !== Number(request.authUser?.instituicao_id)) {
+    throw createHttpError(403, "Motorista invalido para esta instituicao.");
+  }
+
+  if (driver.ativo === false || driver.ativo === 0 || driver.situacao === "INATIVO") {
+    throw createHttpError(409, "Motorista esta inativo.");
+  }
+
+  if (driver.situacao !== "DISPONIVEL") {
+    throw createHttpError(409, "Motorista precisa estar disponivel para aceitar solicitacao.");
+  }
+}
+
+async function updateDriverSituationForAction(action, item, data) {
+  if (action === "accept") {
+    await driversRepository.update(data.motorista_id, { situacao: "EM_SERVICO" });
+    return;
+  }
+
+  if (action === "finish" && item.motorista_id) {
+    const driver = await driversRepository.findById(item.motorista_id);
+
+    if (!driver || driver.ativo === false || driver.ativo === 0 || driver.situacao === "INATIVO") {
+      return;
+    }
+
+    await driversRepository.update(item.motorista_id, { situacao: "DISPONIVEL" });
+  }
+}
+
 function ensureActionAllowed(request, item, action) {
   const profile = request.authUser?.perfil;
 
@@ -83,6 +120,7 @@ async function updateSituation(request, response, next, options) {
     }
 
     if (options.action === "accept") {
+      await ensureDriverAvailableForAccept(request, request.body?.motorista_id);
       await ensureDriverAllowed(request, request.body?.motorista_id);
     }
 
@@ -90,10 +128,12 @@ async function updateSituation(request, response, next, options) {
       await ensureDriverAllowed(request, item.motorista_id);
     }
 
+    const data = options.data(request.body || {}, item);
     const updatedItem = await repository.update(request.params.id, {
-      ...options.data(request.body || {}, item),
+      ...data,
       situacao: options.nextSituation,
     });
+    await updateDriverSituationForAction(options.action, item, data);
 
     response.json({ data: updatedItem });
   } catch (error) {
