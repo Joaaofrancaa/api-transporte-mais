@@ -189,24 +189,6 @@ async function sendTestNotification(user) {
   };
 }
 
-function getSaoPauloDateKey(date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    day: "2-digit",
-    month: "2-digit",
-    timeZone: "America/Sao_Paulo",
-    year: "numeric",
-  }).formatToParts(date);
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-
-  return `${values.year}-${values.month}-${values.day}`;
-}
-
-function isRequestDueForNotification(request) {
-  const scheduledDate = String(request?.agendado_para || "").slice(0, 10);
-
-  return !scheduledDate || scheduledDate <= getSaoPauloDateKey();
-}
-
 async function notifyNewTransportRequest(request) {
   if (!configureWebPush()) {
     console.warn("Notificacao push ignorada: VAPID nao configurado.");
@@ -217,10 +199,6 @@ async function notifyNewTransportRequest(request) {
     console.warn("Notificacao push ignorada: solicitacao sem instituicao.", {
       requestId: request?.id,
     });
-    return;
-  }
-
-  if (!isRequestDueForNotification(request)) {
     return;
   }
 
