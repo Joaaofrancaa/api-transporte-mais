@@ -33,6 +33,10 @@ async function saveSubscription(user, subscription, userAgent = "") {
     subscription.endpoint,
   ]);
 
+  if (!recipientProfiles.includes(user.perfil)) {
+    return true;
+  }
+
   await pool.execute(
     `INSERT INTO push_subscriptions
       (instituicao_id, usuario_id, perfil, endpoint, p256dh, auth, user_agent, ativo)
@@ -80,12 +84,15 @@ async function deactivateEndpoint(endpoint) {
 async function listRecipients(institutionId) {
   const pool = getDatabasePool();
   const [rows] = await pool.query(
-    `SELECT endpoint, p256dh, auth
-       FROM push_subscriptions
-      WHERE instituicao_id = ?
-        AND ativo = TRUE
-        AND perfil = ?`,
-    [institutionId, recipientProfiles[0]],
+    `SELECT ps.endpoint, ps.p256dh, ps.auth
+       FROM push_subscriptions ps
+       INNER JOIN usuarios u ON u.id = ps.usuario_id
+      WHERE ps.instituicao_id = ?
+        AND ps.ativo = TRUE
+        AND ps.perfil = ?
+        AND u.perfil = ?
+        AND u.ativo = TRUE`,
+    [institutionId, recipientProfiles[0], recipientProfiles[0]],
   );
 
   return rows;
