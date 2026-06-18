@@ -26,12 +26,14 @@ function normalizeOffset(value) {
 function createCrudRepository({
   tableName,
   searchableColumns = [],
+  filterableColumns = [],
   defaultOrder = "id DESC",
   tenantColumn = "",
 }) {
   const pool = () => getDatabasePool();
 
-  async function list({ search, limit, offset, instituicao_id } = {}) {
+  async function list(query = {}) {
+    const { search, limit, offset, instituicao_id } = query;
     const values = [];
     const where = [];
 
@@ -45,6 +47,22 @@ function createCrudRepository({
         `(${searchableColumns.map((column) => `${column} LIKE ?`).join(" OR ")})`,
       );
       values.push(...searchableColumns.map(() => `%${search}%`));
+    }
+
+    for (const column of filterableColumns) {
+      const value = query[column];
+
+      if (value === undefined || value === "") {
+        continue;
+      }
+
+      if (String(value).toLowerCase() === "null") {
+        where.push(`${column} IS NULL`);
+        continue;
+      }
+
+      where.push(`${column} = ?`);
+      values.push(value);
     }
 
     values.push(normalizeLimit(limit), normalizeOffset(offset));

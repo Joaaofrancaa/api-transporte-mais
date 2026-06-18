@@ -209,6 +209,15 @@ const resources = {
     tableName: "solicitacoes_transporte",
     tenantColumn: "instituicao_id",
     searchableColumns: ["nome_paciente", "nome_destino", "endereco_destino"],
+    filterableColumns: [
+      "solicitante_usuario_id",
+      "setor_origem_id",
+      "motorista_id",
+      "tipo",
+      "agendado_para",
+      "prioridade",
+      "situacao",
+    ],
     writableColumns: [
       "instituicao_id",
       "solicitante_usuario_id",
