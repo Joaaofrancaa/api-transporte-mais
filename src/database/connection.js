@@ -16,6 +16,7 @@ function getDatabasePool() {
       connectionLimit: env.database.connectionLimit,
       queueLimit: 0,
       enableKeepAlive: true,
+      dateStrings: true,
     });
   }
 
