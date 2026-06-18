@@ -7,6 +7,7 @@ const recipientProfiles = ["MOTORISTA"];
 const dueNotificationIntervalMs = 30 * 1000;
 const cardRenderGracePeriodMs = 5 * 1000;
 const maxNotificationTimeoutMs = 2 ** 31 - 1;
+const notificationTimeZone = process.env.APP_TIME_ZONE || "America/Sao_Paulo";
 
 let dueNotificationTimer;
 let isProcessingDueNotifications = false;
@@ -32,6 +33,27 @@ function isRequestDueForNotification(request) {
   const scheduledDate = getRequestScheduledDate(request);
 
   return !scheduledDate || scheduledDate.getTime() <= Date.now();
+}
+
+function getCurrentLocalSqlDateTime() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+    hourCycle: "h23",
+    minute: "2-digit",
+    month: "2-digit",
+    second: "2-digit",
+    timeZone: notificationTimeZone,
+    year: "numeric",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+
+  return `${values.year}-${values.month}-${values.day} ${values.hour}:${values.minute}:${values.second}`;
 }
 
 function getNotificationDelayMs(request, options = {}) {
@@ -250,11 +272,11 @@ async function getTransportRequestNotificationReadiness(requestId) {
 
   const pool = getDatabasePool();
   const [rows] = await pool.query(
-    `SELECT situacao, agendado_para <= NOW() AS vencida
+    `SELECT situacao, agendado_para <= ? AS vencida
        FROM solicitacoes_transporte
       WHERE id = ?
       LIMIT 1`,
-    [requestId],
+    [getCurrentLocalSqlDateTime(), requestId],
   );
 
   return rows[0] || null;
@@ -366,17 +388,18 @@ async function markTransportRequestNotified(requestId) {
 async function listDueUnnotifiedTransportRequests(limit = 50) {
   const pool = getDatabasePool();
   const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 50, 1), 200);
+  const currentLocalDateTime = getCurrentLocalSqlDateTime();
   const [rows] = await pool.query(
     `SELECT st.*
        FROM solicitacoes_transporte st
        LEFT JOIN solicitacoes_transporte_notificacoes stn
          ON stn.solicitacao_id = st.id
       WHERE st.situacao = 'PENDENTE'
-        AND st.agendado_para <= NOW()
+        AND st.agendado_para <= ?
         AND stn.id IS NULL
       ORDER BY st.agendado_para ASC, st.id ASC
       LIMIT ?`,
-    [safeLimit],
+    [currentLocalDateTime, safeLimit],
   );
 
   return rows;
