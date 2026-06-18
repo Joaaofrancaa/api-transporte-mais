@@ -4,8 +4,8 @@ const env = require("../config/env");
 const { getDatabasePool } = require("../database/connection");
 
 const recipientProfiles = ["MOTORISTA"];
-const dueNotificationIntervalMs = 30 * 1000;
-const cardRenderGracePeriodMs = 5 * 1000;
+const dueNotificationIntervalMs = 5 * 1000;
+const cardRenderGracePeriodMs = 0;
 const maxNotificationTimeoutMs = 2 ** 31 - 1;
 const notificationTimeZone = process.env.APP_TIME_ZONE || "America/Sao_Paulo";
 
