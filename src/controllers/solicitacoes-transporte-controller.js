@@ -56,9 +56,20 @@ async function ensureDriverAvailableForAccept(request, motoristaId) {
     throw createHttpError(409, "Motorista esta inativo.");
   }
 
-  if (driver.situacao !== "DISPONIVEL") {
-    throw createHttpError(409, "Motorista precisa estar disponivel para aceitar solicitacao.");
-  }
+}
+
+async function hasOtherOpenService(motoristaId, currentRequestId, institutionId) {
+  const requests = await repository.list({
+    instituicao_id: institutionId,
+    limit: 200,
+  });
+
+  return requests.some(
+    (request) =>
+      Number(request.id) !== Number(currentRequestId) &&
+      Number(request.motorista_id) === Number(motoristaId) &&
+      ["ACEITA", "EM_ANDAMENTO"].includes(request.situacao),
+  );
 }
 
 async function updateDriverSituationForAction(action, item, data) {
@@ -74,7 +85,15 @@ async function updateDriverSituationForAction(action, item, data) {
       return;
     }
 
-    await driversRepository.update(item.motorista_id, { situacao: "DISPONIVEL" });
+    const nextSituation = await hasOtherOpenService(
+      item.motorista_id,
+      item.id,
+      item.instituicao_id,
+    )
+      ? "EM_SERVICO"
+      : "DISPONIVEL";
+
+    await driversRepository.update(item.motorista_id, { situacao: nextSituation });
   }
 }
 
