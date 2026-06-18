@@ -1,9 +1,13 @@
 const { closeDatabasePool } = require("../src/database/connection");
 const { ensurePushSubscriptionsTable } = require("../src/database/ensure-push-subscriptions");
+const {
+  ensureTransportRequestNotificationsTable,
+} = require("../src/database/ensure-transport-request-notifications");
 
 async function main() {
   await ensurePushSubscriptionsTable();
-  console.log("Tabela push_subscriptions garantida.");
+  await ensureTransportRequestNotificationsTable();
+  console.log("Tabelas de notificacoes push garantidas.");
 }
 
 main()

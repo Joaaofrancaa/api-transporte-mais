@@ -4,6 +4,10 @@ const env = require("../config/env");
 const { getDatabasePool } = require("../database/connection");
 
 const recipientProfiles = ["MOTORISTA"];
+const dueNotificationIntervalMs = 30 * 1000;
+
+let dueNotificationTimer;
+let isProcessingDueNotifications = false;
 
 function getRequestScheduledDate(request) {
   const scheduledAt = request?.agendado_para;
@@ -221,23 +225,23 @@ async function sendTestNotification(user) {
 
 async function notifyNewTransportRequest(request, options = {}) {
   if (options.notificar_motoristas === false || options.suprimir_notificacao === true) {
-    return;
+    return { configured: true, sent: 0, failed: 0, skipped: true };
   }
 
   if (!isRequestDueForNotification(request)) {
-    return;
+    return { configured: true, sent: 0, failed: 0, skipped: true };
   }
 
   if (!configureWebPush()) {
     console.warn("Notificacao push ignorada: VAPID nao configurado.");
-    return;
+    return { configured: false, sent: 0, failed: 0, skipped: true };
   }
 
   if (!request?.instituicao_id) {
     console.warn("Notificacao push ignorada: solicitacao sem instituicao.", {
       requestId: request?.id,
     });
-    return;
+    return { configured: true, sent: 0, failed: 0, skipped: true };
   }
 
   const recipients = await listRecipients(request.instituicao_id);
@@ -247,7 +251,7 @@ async function notifyNewTransportRequest(request, options = {}) {
       institutionId: request.instituicao_id,
       requestId: request.id,
     });
-    return;
+    return { configured: true, sent: 0, failed: 0, skipped: true };
   }
 
   const payload = {
@@ -265,14 +269,105 @@ async function notifyNewTransportRequest(request, options = {}) {
     },
   };
 
-  await Promise.all(recipients.map((row) => sendToSubscription(row, payload)));
+  const results = await Promise.all(recipients.map((row) => sendToSubscription(row, payload)));
+  const sent = results.filter((result) => result.ok).length;
+  const failed = results.length - sent;
+
+  if (sent > 0) {
+    await markTransportRequestNotified(request.id);
+  }
+
+  return {
+    configured: true,
+    sent,
+    failed,
+    skipped: false,
+  };
+}
+
+async function markTransportRequestNotified(requestId) {
+  if (!requestId) {
+    return;
+  }
+
+  const pool = getDatabasePool();
+
+  await pool.execute(
+    `INSERT IGNORE INTO solicitacoes_transporte_notificacoes
+      (solicitacao_id, notificado_em)
+     VALUES (?, NOW())`,
+    [requestId],
+  );
+}
+
+async function listDueUnnotifiedTransportRequests(limit = 50) {
+  const pool = getDatabasePool();
+  const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 50, 1), 200);
+  const [rows] = await pool.query(
+    `SELECT st.*
+       FROM solicitacoes_transporte st
+       LEFT JOIN solicitacoes_transporte_notificacoes stn
+         ON stn.solicitacao_id = st.id
+      WHERE st.situacao = 'PENDENTE'
+        AND st.agendado_para <= NOW()
+        AND stn.id IS NULL
+      ORDER BY st.agendado_para ASC, st.id ASC
+      LIMIT ?`,
+    [safeLimit],
+  );
+
+  return rows;
+}
+
+async function notifyDueTransportRequests() {
+  if (!isPushConfigured() || isProcessingDueNotifications) {
+    return;
+  }
+
+  isProcessingDueNotifications = true;
+
+  try {
+    const requests = await listDueUnnotifiedTransportRequests();
+
+    for (const request of requests) {
+      await notifyNewTransportRequest(request);
+    }
+  } catch (error) {
+    console.error("Falha ao processar notificacoes pendentes.", error);
+  } finally {
+    isProcessingDueNotifications = false;
+  }
+}
+
+function startDueTransportRequestNotifications() {
+  if (dueNotificationTimer) {
+    return;
+  }
+
+  notifyDueTransportRequests();
+  dueNotificationTimer = setInterval(
+    notifyDueTransportRequests,
+    dueNotificationIntervalMs,
+  );
+}
+
+function stopDueTransportRequestNotifications() {
+  if (!dueNotificationTimer) {
+    return;
+  }
+
+  clearInterval(dueNotificationTimer);
+  dueNotificationTimer = undefined;
 }
 
 module.exports = {
   getUserSubscriptionStatus,
   isPushConfigured,
+  notifyDueTransportRequests,
   notifyNewTransportRequest,
   removeSubscription,
   saveSubscription,
   sendTestNotification,
+  startDueTransportRequestNotifications,
+  stopDueTransportRequestNotifications,
 };
