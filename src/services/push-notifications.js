@@ -4,6 +4,9 @@ const env = require("../config/env");
 const { getDatabasePool } = require("../database/connection");
 
 const recipientProfiles = ["MOTORISTA"];
+const DUE_REQUEST_NOTIFICATION_INTERVAL_MS = 60 * 1000;
+
+let dueRequestNotificationTimer;
 
 function isPushConfigured() {
   return Boolean(env.push.publicKey && env.push.privateKey);
@@ -189,22 +192,60 @@ async function sendTestNotification(user) {
   };
 }
 
-function getSaoPauloDateKey(date = new Date()) {
+function getSaoPauloDateTimeKey(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+    hour12: false,
     month: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
     timeZone: "America/Sao_Paulo",
     year: "numeric",
   }).formatToParts(date);
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
 
-  return `${values.year}-${values.month}-${values.day}`;
+  return `${values.year}-${values.month}-${values.day} ${values.hour}:${values.minute}:${values.second}`;
+}
+
+function formatDateTimeKey(value) {
+  if (!value) {
+    return "";
+  }
+
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    const hour = String(value.getHours()).padStart(2, "0");
+    const minute = String(value.getMinutes()).padStart(2, "0");
+    const second = String(value.getSeconds()).padStart(2, "0");
+
+    return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+  }
+
+  return String(value).replace("T", " ").slice(0, 19);
 }
 
 function isRequestDueForNotification(request) {
-  const scheduledDate = String(request?.agendado_para || "").slice(0, 10);
+  const scheduledAt = formatDateTimeKey(request?.agendado_para);
 
-  return !scheduledDate || scheduledDate <= getSaoPauloDateKey();
+  return !scheduledAt || scheduledAt <= getSaoPauloDateTimeKey();
+}
+
+async function claimRequestNotification(requestId) {
+  if (!requestId) {
+    return false;
+  }
+
+  const pool = getDatabasePool();
+  const [result] = await pool.execute(
+    "INSERT IGNORE INTO solicitacoes_transporte_notificacoes (solicitacao_id) VALUES (?)",
+    [requestId],
+  );
+
+  return result.affectedRows > 0;
 }
 
 async function notifyNewTransportRequest(request) {
@@ -221,6 +262,12 @@ async function notifyNewTransportRequest(request) {
   }
 
   if (!isRequestDueForNotification(request)) {
+    return;
+  }
+
+  const canSend = await claimRequestNotification(request.id);
+
+  if (!canSend) {
     return;
   }
 
@@ -252,6 +299,59 @@ async function notifyNewTransportRequest(request) {
   await Promise.all(recipients.map((row) => sendToSubscription(row, payload)));
 }
 
+async function notifyDueTransportRequests() {
+  if (!configureWebPush()) {
+    return;
+  }
+
+  const pool = getDatabasePool();
+  const [rows] = await pool.query(
+    `
+      SELECT solicitacoes_transporte.*
+        FROM solicitacoes_transporte
+        LEFT JOIN solicitacoes_transporte_notificacoes
+          ON solicitacoes_transporte_notificacoes.solicitacao_id = solicitacoes_transporte.id
+       WHERE solicitacoes_transporte.situacao = 'PENDENTE'
+         AND solicitacoes_transporte.agendado_para <= ?
+         AND solicitacoes_transporte_notificacoes.id IS NULL
+       ORDER BY solicitacoes_transporte.agendado_para ASC
+       LIMIT 50
+    `,
+    [getSaoPauloDateTimeKey()],
+  );
+
+  for (const request of rows) {
+    await notifyNewTransportRequest(request);
+  }
+}
+
+function startDueTransportRequestNotifications() {
+  if (dueRequestNotificationTimer) {
+    return;
+  }
+
+  notifyDueTransportRequests().catch((error) => {
+    console.error("Falha ao notificar solicitacoes de rotina vencidas.", error);
+  });
+
+  dueRequestNotificationTimer = setInterval(() => {
+    notifyDueTransportRequests().catch((error) => {
+      console.error("Falha ao notificar solicitacoes de rotina vencidas.", error);
+    });
+  }, DUE_REQUEST_NOTIFICATION_INTERVAL_MS);
+
+  dueRequestNotificationTimer.unref?.();
+}
+
+function stopDueTransportRequestNotifications() {
+  if (!dueRequestNotificationTimer) {
+    return;
+  }
+
+  clearInterval(dueRequestNotificationTimer);
+  dueRequestNotificationTimer = undefined;
+}
+
 module.exports = {
   getUserSubscriptionStatus,
   isPushConfigured,
@@ -259,4 +359,6 @@ module.exports = {
   removeSubscription,
   saveSubscription,
   sendTestNotification,
+  startDueTransportRequestNotifications,
+  stopDueTransportRequestNotifications,
 };
