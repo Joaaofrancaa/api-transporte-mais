@@ -211,14 +211,14 @@ async function requestPasswordRecovery(request, response, next) {
     try {
       await sendRecoveryCode(user.email, code);
     } catch (error) {
-      console.error("SMTP_RECOVERY_ERROR", {
+      console.error("SMTP_RECOVERY_ERROR " + JSON.stringify({
         message: error.message,
         code: error.code,
         errno: error.errno,
         syscall: error.syscall,
         address: error.address,
         port: error.port,
-      });
+      }));
       throw createHttpError(
         503,
         error.message === "Envio de e-mail não configurado."
