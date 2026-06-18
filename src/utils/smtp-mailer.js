@@ -2,8 +2,16 @@ const net = require("node:net");
 const tls = require("node:tls");
 
 const DEFAULT_TIMEOUT_MS = 15000;
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 const SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send";
 const RESEND_API_URL = "https://api.resend.com/emails";
+
+function isBrevoConfigured() {
+  return Boolean(
+    process.env.BREVO_API_KEY &&
+      (process.env.BREVO_FROM_EMAIL || process.env.SMTP_FROM),
+  );
+}
 
 function isSendGridConfigured() {
   return Boolean(
@@ -201,6 +209,40 @@ async function sendWithSendGrid({ replyTo, to, subject, text }) {
   }
 }
 
+async function sendWithBrevo({ replyTo, to, subject, text }) {
+  const from = parseSender(process.env.BREVO_FROM_EMAIL || process.env.SMTP_FROM);
+  const fromName = process.env.BREVO_FROM_NAME || from.name || "Transporte+";
+  const payload = {
+    sender: {
+      email: from.email,
+      name: fromName,
+    },
+    to: [{ email: to }],
+    subject,
+    textContent: text,
+  };
+
+  if (replyTo) {
+    payload.replyTo = { email: replyTo };
+  }
+
+  const response = await fetch(BREVO_API_URL, {
+    method: "POST",
+    headers: {
+      "api-key": process.env.BREVO_API_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+    signal: createRequestSignal(),
+  });
+
+  if (!response.ok) {
+    const error = new Error(`Brevo recusou o e-mail: ${await readErrorResponse(response)}`);
+    error.code = `BREVO_${response.status}`;
+    throw error;
+  }
+}
+
 async function sendWithResend({ replyTo, to, subject, text }) {
   const payload = {
     from: process.env.RESEND_FROM || process.env.SMTP_FROM,
@@ -232,6 +274,11 @@ async function sendWithResend({ replyTo, to, subject, text }) {
 }
 
 async function sendEmail({ replyTo, to, subject, text }) {
+  if (isBrevoConfigured()) {
+    await sendWithBrevo({ replyTo, to, subject, text });
+    return;
+  }
+
   if (isSendGridConfigured()) {
     await sendWithSendGrid({ replyTo, to, subject, text });
     return;
@@ -281,6 +328,7 @@ async function sendEmail({ replyTo, to, subject, text }) {
 }
 
 module.exports = {
+  isBrevoConfigured,
   isResendConfigured,
   isSendGridConfigured,
   isSmtpConfigured,
