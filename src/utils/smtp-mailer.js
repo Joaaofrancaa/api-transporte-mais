@@ -2,6 +2,22 @@ const net = require("node:net");
 const tls = require("node:tls");
 
 const DEFAULT_TIMEOUT_MS = 15000;
+const SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send";
+const RESEND_API_URL = "https://api.resend.com/emails";
+
+function isSendGridConfigured() {
+  return Boolean(
+    process.env.SENDGRID_API_KEY &&
+      (process.env.SENDGRID_FROM_EMAIL || process.env.SMTP_FROM),
+  );
+}
+
+function isResendConfigured() {
+  return Boolean(
+    process.env.RESEND_API_KEY &&
+      (process.env.RESEND_FROM || process.env.SMTP_FROM),
+  );
+}
 
 function isSmtpConfigured() {
   return Boolean(
@@ -115,7 +131,117 @@ function buildMessage({ from, replyTo, to, subject, text }) {
   ].filter(Boolean).join("\r\n");
 }
 
+function createRequestSignal() {
+  if (typeof AbortSignal !== "undefined" && AbortSignal.timeout) {
+    return AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
+  }
+
+  return undefined;
+}
+
+function parseSender(value) {
+  const sender = String(value || "").trim();
+  const match = sender.match(/^(.*)<([^>]+)>$/);
+
+  if (!match) {
+    return { email: sender };
+  }
+
+  return {
+    name: match[1].trim().replace(/^"|"$/g, ""),
+    email: match[2].trim(),
+  };
+}
+
+async function readErrorResponse(response) {
+  const body = await response.text();
+  return body || `${response.status} ${response.statusText}`;
+}
+
+async function sendWithSendGrid({ replyTo, to, subject, text }) {
+  const from = parseSender(process.env.SENDGRID_FROM_EMAIL || process.env.SMTP_FROM);
+  const fromName = process.env.SENDGRID_FROM_NAME || from.name || "Transporte+";
+  const payload = {
+    personalizations: [
+      {
+        to: [{ email: to }],
+      },
+    ],
+    from: {
+      email: from.email,
+      name: fromName,
+    },
+    subject,
+    content: [
+      {
+        type: "text/plain",
+        value: text,
+      },
+    ],
+  };
+
+  if (replyTo) {
+    payload.reply_to = { email: replyTo };
+  }
+
+  const response = await fetch(SENDGRID_API_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+    signal: createRequestSignal(),
+  });
+
+  if (!response.ok) {
+    const error = new Error(`SendGrid recusou o e-mail: ${await readErrorResponse(response)}`);
+    error.code = `SENDGRID_${response.status}`;
+    throw error;
+  }
+}
+
+async function sendWithResend({ replyTo, to, subject, text }) {
+  const payload = {
+    from: process.env.RESEND_FROM || process.env.SMTP_FROM,
+    to: [to],
+    subject,
+    text,
+  };
+
+  if (replyTo) {
+    payload.reply_to = replyTo;
+  }
+
+  const response = await fetch(RESEND_API_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+      "User-Agent": "api-transporte-mais/0.1.0",
+    },
+    body: JSON.stringify(payload),
+    signal: createRequestSignal(),
+  });
+
+  if (!response.ok) {
+    const error = new Error(`Resend recusou o e-mail: ${await readErrorResponse(response)}`);
+    error.code = `RESEND_${response.status}`;
+    throw error;
+  }
+}
+
 async function sendEmail({ replyTo, to, subject, text }) {
+  if (isSendGridConfigured()) {
+    await sendWithSendGrid({ replyTo, to, subject, text });
+    return;
+  }
+
+  if (isResendConfigured()) {
+    await sendWithResend({ replyTo, to, subject, text });
+    return;
+  }
+
   if (!isSmtpConfigured()) {
     throw new Error("Envio de e-mail não configurado.");
   }
@@ -155,6 +281,8 @@ async function sendEmail({ replyTo, to, subject, text }) {
 }
 
 module.exports = {
+  isResendConfigured,
+  isSendGridConfigured,
   isSmtpConfigured,
   sendEmail,
 };
