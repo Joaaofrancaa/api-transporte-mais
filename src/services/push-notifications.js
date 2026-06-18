@@ -5,32 +5,27 @@ const { getDatabasePool } = require("../database/connection");
 
 const recipientProfiles = ["MOTORISTA"];
 
-function getLocalDateKey(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
-function getRequestDateKey(request) {
+function getRequestScheduledDate(request) {
   const scheduledAt = request?.agendado_para;
 
   if (!scheduledAt) {
-    return "";
+    return null;
   }
 
   if (scheduledAt instanceof Date) {
-    return getLocalDateKey(scheduledAt);
+    return scheduledAt;
   }
 
-  return String(scheduledAt).slice(0, 10);
+  const normalizedDateTime = String(scheduledAt).replace(" ", "T").slice(0, 16);
+  const date = new Date(normalizedDateTime);
+
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function isRequestDueForNotification(request) {
-  const requestDateKey = getRequestDateKey(request);
+  const scheduledDate = getRequestScheduledDate(request);
 
-  return !requestDateKey || requestDateKey <= getLocalDateKey();
+  return !scheduledDate || scheduledDate.getTime() <= Date.now();
 }
 
 function isPushConfigured() {
