@@ -4,6 +4,9 @@ const env = require("../config/env");
 const { getDatabasePool } = require("../database/connection");
 
 const recipientProfiles = ["MOTORISTA"];
+const notificationIntervalMs = 30 * 1000;
+let transportRequestNotificationTimer = null;
+let isProcessingTransportRequestNotifications = false;
 
 function getRequestScheduledDate(request) {
   const scheduledAt = request?.agendado_para;
@@ -134,6 +137,67 @@ async function listUserSubscriptions(userId) {
   return rows;
 }
 
+async function ensureTransportRequestNotificationsTable() {
+  const pool = getDatabasePool();
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS solicitacoes_transporte_notificacoes (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      solicitacao_transporte_id BIGINT UNSIGNED NOT NULL,
+      enviada_em DATETIME NOT NULL,
+      criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uk_solicitacao_transporte_notificacao (solicitacao_transporte_id),
+      CONSTRAINT fk_solicitacoes_transporte_notificacoes_solicitacao
+        FOREIGN KEY (solicitacao_transporte_id) REFERENCES solicitacoes_transporte (id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+}
+
+async function wasTransportRequestNotified(requestId) {
+  const pool = getDatabasePool();
+  const [rows] = await pool.query(
+    `SELECT id
+       FROM solicitacoes_transporte_notificacoes
+      WHERE solicitacao_transporte_id = ?
+      LIMIT 1`,
+    [requestId],
+  );
+
+  return Boolean(rows[0]);
+}
+
+async function markTransportRequestNotified(requestId) {
+  const pool = getDatabasePool();
+
+  await pool.query(
+    `INSERT IGNORE INTO solicitacoes_transporte_notificacoes
+      (solicitacao_transporte_id, enviada_em)
+     VALUES (?, NOW())`,
+    [requestId],
+  );
+}
+
+async function listDueTransportRequests(limit = 50) {
+  const pool = getDatabasePool();
+  const [rows] = await pool.query(
+    `SELECT st.*
+       FROM solicitacoes_transporte st
+       LEFT JOIN solicitacoes_transporte_notificacoes stn
+         ON stn.solicitacao_transporte_id = st.id
+      WHERE st.situacao = 'PENDENTE'
+        AND st.agendado_para <= NOW()
+        AND stn.id IS NULL
+      ORDER BY st.agendado_para ASC
+      LIMIT ?`,
+    [limit],
+  );
+
+  return rows;
+}
+
 function getEndpointHost(endpoint) {
   try {
     return new URL(endpoint).host;
@@ -219,15 +283,7 @@ async function sendTestNotification(user) {
   };
 }
 
-async function notifyNewTransportRequest(request, options = {}) {
-  if (options.notificar_motoristas === false || options.suprimir_notificacao === true) {
-    return;
-  }
-
-  if (!isRequestDueForNotification(request)) {
-    return;
-  }
-
+async function sendTransportRequestNotification(request) {
   if (!configureWebPush()) {
     console.warn("Notificacao push ignorada: VAPID nao configurado.");
     return;
@@ -265,14 +321,89 @@ async function notifyNewTransportRequest(request, options = {}) {
     },
   };
 
-  await Promise.all(recipients.map((row) => sendToSubscription(row, payload)));
+  const results = await Promise.all(recipients.map((row) => sendToSubscription(row, payload)));
+
+  return {
+    failed: results.filter((result) => !result.ok).length,
+    sent: results.filter((result) => result.ok).length,
+  };
+}
+
+async function notifyNewTransportRequest(request, options = {}) {
+  if (options.notificar_motoristas === false || options.suprimir_notificacao === true) {
+    return { skipped: true };
+  }
+
+  if (!isRequestDueForNotification(request)) {
+    return { scheduled: true };
+  }
+
+  await ensureTransportRequestNotificationsTable();
+
+  if (await wasTransportRequestNotified(request.id)) {
+    return { skipped: true };
+  }
+
+  const result = await sendTransportRequestNotification(request);
+
+  if (result?.sent > 0) {
+    await markTransportRequestNotified(request.id);
+  }
+
+  return result;
+}
+
+async function processDueTransportRequestNotifications() {
+  if (isProcessingTransportRequestNotifications) {
+    return;
+  }
+
+  isProcessingTransportRequestNotifications = true;
+
+  try {
+    await ensureTransportRequestNotificationsTable();
+    const requests = await listDueTransportRequests();
+
+    for (const request of requests) {
+      await notifyNewTransportRequest(request);
+    }
+  } catch (error) {
+    console.error("Falha ao processar notificacoes agendadas de transporte.", error);
+  } finally {
+    isProcessingTransportRequestNotifications = false;
+  }
+}
+
+function startTransportRequestNotificationScheduler() {
+  if (transportRequestNotificationTimer) {
+    return;
+  }
+
+  processDueTransportRequestNotifications();
+  transportRequestNotificationTimer = setInterval(
+    processDueTransportRequestNotifications,
+    notificationIntervalMs,
+  );
+}
+
+function stopTransportRequestNotificationScheduler() {
+  if (!transportRequestNotificationTimer) {
+    return;
+  }
+
+  clearInterval(transportRequestNotificationTimer);
+  transportRequestNotificationTimer = null;
 }
 
 module.exports = {
+  ensureTransportRequestNotificationsTable,
   getUserSubscriptionStatus,
   isPushConfigured,
   notifyNewTransportRequest,
+  processDueTransportRequestNotifications,
   removeSubscription,
   saveSubscription,
   sendTestNotification,
+  startTransportRequestNotificationScheduler,
+  stopTransportRequestNotificationScheduler,
 };
