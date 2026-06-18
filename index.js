@@ -1,3 +1,6 @@
 const { startServer } = require("./src/server");
 
-startServer();
+startServer().catch((error) => {
+  console.error("Falha ao iniciar a API.", error);
+  process.exitCode = 1;
+});
