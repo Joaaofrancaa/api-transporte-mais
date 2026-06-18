@@ -36,7 +36,6 @@ module.exports = Object.freeze({
   nodeEnv,
   isProduction: nodeEnv === "production",
   port: parsePositiveInteger(process.env.PORT, 3000),
-  timeZone: process.env.APP_TIME_ZONE || "America/Sao_Paulo",
   corsOrigins: parseCorsOrigins(process.env.CORS_ORIGIN),
   jsonLimit: process.env.JSON_LIMIT || "1mb",
   trustProxy: parseBoolean(process.env.TRUST_PROXY, false),
