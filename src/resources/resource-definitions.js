@@ -1,6 +1,8 @@
 const { sendSupportTicketEmail } = require("./support-ticket-hooks");
 const { getDatabasePool } = require("../database/connection");
-const { notifyNewTransportRequest } = require("../services/push-notifications");
+const {
+  scheduleNewTransportRequestNotification,
+} = require("../services/push-notifications");
 const createHttpError = require("../utils/http-error");
 const { hashPasswordField } = require("../utils/password-hash");
 
@@ -245,7 +247,7 @@ const resources = {
       "prioridade",
     ],
     beforeUpdate: prepareSolicitacaoUpdate,
-    afterCreate: notifyNewTransportRequest,
+    afterCreate: scheduleNewTransportRequestNotification,
   },
   acompanhamentosAmbulancia: {
     route: "acompanhamentos-ambulancia",

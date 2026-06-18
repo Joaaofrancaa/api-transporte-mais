@@ -5,6 +5,7 @@ const { getDatabasePool } = require("../database/connection");
 
 const recipientProfiles = ["MOTORISTA"];
 const dueNotificationIntervalMs = 30 * 1000;
+const cardRenderGracePeriodMs = 5 * 1000;
 
 let dueNotificationTimer;
 let isProcessingDueNotifications = false;
@@ -285,6 +286,19 @@ async function notifyNewTransportRequest(request, options = {}) {
   };
 }
 
+function scheduleNewTransportRequestNotification(request, options = {}) {
+  setTimeout(() => {
+    notifyNewTransportRequest(request, options).catch((error) => {
+      console.error("Falha ao enviar notificacao de nova solicitacao.", error);
+    });
+  }, cardRenderGracePeriodMs);
+
+  return {
+    scheduled: true,
+    delayMs: cardRenderGracePeriodMs,
+  };
+}
+
 async function markTransportRequestNotified(requestId) {
   if (!requestId) {
     return;
@@ -309,7 +323,7 @@ async function listDueUnnotifiedTransportRequests(limit = 50) {
        LEFT JOIN solicitacoes_transporte_notificacoes stn
          ON stn.solicitacao_id = st.id
       WHERE st.situacao = 'PENDENTE'
-        AND st.agendado_para <= NOW()
+        AND st.agendado_para <= DATE_SUB(NOW(), INTERVAL 5 SECOND)
         AND stn.id IS NULL
       ORDER BY st.agendado_para ASC, st.id ASC
       LIMIT ?`,
@@ -367,6 +381,7 @@ module.exports = {
   notifyNewTransportRequest,
   removeSubscription,
   saveSubscription,
+  scheduleNewTransportRequestNotification,
   sendTestNotification,
   startDueTransportRequestNotifications,
   stopDueTransportRequestNotifications,
