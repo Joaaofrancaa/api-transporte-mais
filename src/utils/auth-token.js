@@ -3,8 +3,6 @@ const { createHmac, timingSafeEqual } = require("node:crypto");
 const env = require("../config/env");
 const createHttpError = require("./http-error");
 
-const DEFAULT_EXPIRES_IN_SECONDS = 8 * 60 * 60;
-
 function base64UrlEncode(value) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
 }
@@ -21,26 +19,6 @@ function getSecret() {
   return env.jwt.secret;
 }
 
-function parseExpiresIn(value) {
-  const text = String(value || "").trim();
-  const match = text.match(/^(\d+)([smhd])?$/i);
-
-  if (!match) {
-    return DEFAULT_EXPIRES_IN_SECONDS;
-  }
-
-  const amount = Number(match[1]);
-  const unit = String(match[2] || "s").toLowerCase();
-  const multipliers = {
-    s: 1,
-    m: 60,
-    h: 60 * 60,
-    d: 24 * 60 * 60,
-  };
-
-  return amount * multipliers[unit];
-}
-
 function signPayload(encodedHeader, encodedPayload) {
   return createHmac("sha256", getSecret())
     .update(`${encodedHeader}.${encodedPayload}`)
@@ -55,7 +33,6 @@ function signAuthToken(user) {
     instituicao_id: user.instituicao_id,
     perfil: user.perfil,
     iat: now,
-    exp: now + parseExpiresIn(env.jwt.expiresIn),
   };
   const encodedHeader = base64UrlEncode(header);
   const encodedPayload = base64UrlEncode(payload);
@@ -84,10 +61,9 @@ function verifyAuthToken(token) {
   }
 
   const payload = base64UrlDecode(encodedPayload);
-  const now = Math.floor(Date.now() / 1000);
 
-  if (!payload.sub || !payload.perfil || !payload.exp || payload.exp < now) {
-    throw createHttpError(401, "Sessão expirada. Entre novamente.");
+  if (!payload.sub || !payload.perfil) {
+    throw createHttpError(401, "Entre novamente.");
   }
 
   return {
