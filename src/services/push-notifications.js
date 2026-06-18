@@ -6,6 +6,7 @@ const { getDatabasePool } = require("../database/connection");
 const recipientProfiles = ["MOTORISTA"];
 const dueNotificationIntervalMs = 30 * 1000;
 const cardRenderGracePeriodMs = 5 * 1000;
+const maxNotificationTimeoutMs = 2 ** 31 - 1;
 
 let dueNotificationTimer;
 let isProcessingDueNotifications = false;
@@ -31,6 +32,24 @@ function isRequestDueForNotification(request) {
   const scheduledDate = getRequestScheduledDate(request);
 
   return !scheduledDate || scheduledDate.getTime() <= Date.now();
+}
+
+function getNotificationDelayMs(request, options = {}) {
+  const scheduledDate = getRequestScheduledDate({
+    agendado_para: options.agendado_para || request?.agendado_para,
+  });
+
+  if (!scheduledDate) {
+    return cardRenderGracePeriodMs;
+  }
+
+  const delayMs = scheduledDate.getTime() - Date.now() + cardRenderGracePeriodMs;
+
+  if (delayMs <= cardRenderGracePeriodMs) {
+    return cardRenderGracePeriodMs;
+  }
+
+  return Math.min(delayMs, maxNotificationTimeoutMs);
 }
 
 function isPushConfigured() {
@@ -224,12 +243,40 @@ async function sendTestNotification(user) {
   };
 }
 
+async function getTransportRequestNotificationReadiness(requestId) {
+  if (!requestId) {
+    return null;
+  }
+
+  const pool = getDatabasePool();
+  const [rows] = await pool.query(
+    `SELECT situacao, agendado_para <= NOW() AS vencida
+       FROM solicitacoes_transporte
+      WHERE id = ?
+      LIMIT 1`,
+    [requestId],
+  );
+
+  return rows[0] || null;
+}
+
 async function notifyNewTransportRequest(request, options = {}) {
   if (options.notificar_motoristas === false || options.suprimir_notificacao === true) {
     return { configured: true, sent: 0, failed: 0, skipped: true };
   }
 
-  if (!isRequestDueForNotification(request)) {
+  const readiness = await getTransportRequestNotificationReadiness(request?.id);
+
+  if (readiness) {
+    const isPending = readiness.situacao === "PENDENTE";
+    const isDue = Number(readiness.vencida) === 1;
+
+    if (!isPending || !isDue) {
+      return { configured: true, sent: 0, failed: 0, skipped: true };
+    }
+  }
+
+  if (!readiness && !isRequestDueForNotification(request)) {
     return { configured: true, sent: 0, failed: 0, skipped: true };
   }
 
@@ -287,15 +334,17 @@ async function notifyNewTransportRequest(request, options = {}) {
 }
 
 function scheduleNewTransportRequestNotification(request, options = {}) {
+  const delayMs = getNotificationDelayMs(request, options);
+
   setTimeout(() => {
     notifyNewTransportRequest(request, options).catch((error) => {
       console.error("Falha ao enviar notificacao de nova solicitacao.", error);
     });
-  }, cardRenderGracePeriodMs);
+  }, delayMs);
 
   return {
     scheduled: true,
-    delayMs: cardRenderGracePeriodMs,
+    delayMs,
   };
 }
 
@@ -323,7 +372,7 @@ async function listDueUnnotifiedTransportRequests(limit = 50) {
        LEFT JOIN solicitacoes_transporte_notificacoes stn
          ON stn.solicitacao_id = st.id
       WHERE st.situacao = 'PENDENTE'
-        AND st.agendado_para <= DATE_SUB(NOW(), INTERVAL 5 SECOND)
+        AND st.agendado_para <= NOW()
         AND stn.id IS NULL
       ORDER BY st.agendado_para ASC, st.id ASC
       LIMIT ?`,
