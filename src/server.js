@@ -3,12 +3,20 @@ const env = require("./config/env");
 const { closeDatabasePool } = require("./database/connection");
 const { ensurePushSubscriptionsTable } = require("./database/ensure-push-subscriptions");
 const {
+  ensureTransportRequestNotificationsTable,
+} = require("./database/ensure-transport-request-notifications");
+const {
   startAutomaticBackups,
   stopAutomaticBackups,
 } = require("./services/database-backup");
+const {
+  startScheduledTransportRequestNotifications,
+  stopScheduledTransportRequestNotifications,
+} = require("./services/push-notifications");
 
 async function startServer() {
   await ensurePushSubscriptionsTable();
+  await ensureTransportRequestNotificationsTable();
 
   const app = createApp();
   const server = app.listen(env.port, () => {
@@ -17,6 +25,7 @@ async function startServer() {
     );
   });
   startAutomaticBackups();
+  startScheduledTransportRequestNotifications();
 
   let isShuttingDown = false;
 
@@ -35,6 +44,7 @@ async function startServer() {
       }
 
       try {
+        stopScheduledTransportRequestNotifications();
         stopAutomaticBackups();
         await closeDatabasePool();
       } catch (databaseError) {

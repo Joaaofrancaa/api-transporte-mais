@@ -4,28 +4,39 @@ const env = require("../config/env");
 const { getDatabasePool } = require("../database/connection");
 
 const recipientProfiles = ["MOTORISTA"];
+const scheduledNotificationIntervalMs = 30 * 1000;
+let scheduledNotificationTimer = null;
 
-function getRequestScheduledDate(request) {
+function toLocalMinuteKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hour}:${minute}`;
+}
+
+function getRequestScheduledMinuteKey(request) {
   const scheduledAt = request?.agendado_para;
 
   if (!scheduledAt) {
-    return null;
+    return "";
   }
 
   if (scheduledAt instanceof Date) {
-    return scheduledAt;
+    return toLocalMinuteKey(scheduledAt);
   }
 
-  const normalizedDateTime = String(scheduledAt).replace(" ", "T").slice(0, 16);
-  const date = new Date(normalizedDateTime);
+  const text = String(scheduledAt).trim();
 
-  return Number.isNaN(date.getTime()) ? null : date;
+  return text.replace(" ", "T").slice(0, 16);
 }
 
 function isRequestDueForNotification(request) {
-  const scheduledDate = getRequestScheduledDate(request);
+  const scheduledMinuteKey = getRequestScheduledMinuteKey(request);
 
-  return !scheduledDate || scheduledDate.getTime() <= Date.now();
+  return !scheduledMinuteKey || scheduledMinuteKey <= toLocalMinuteKey();
 }
 
 function isPushConfigured() {
@@ -116,6 +127,38 @@ async function listRecipients(institutionId) {
         AND u.perfil = ?
         AND u.ativo = TRUE`,
     [institutionId, recipientProfiles[0], recipientProfiles[0]],
+  );
+
+  return rows;
+}
+
+async function markTransportRequestNotified(requestId) {
+  if (!requestId) {
+    return;
+  }
+
+  const pool = getDatabasePool();
+  await pool.execute(
+    `INSERT IGNORE INTO solicitacoes_transporte_notificacoes (solicitacao_id, canal)
+     VALUES (?, 'push')`,
+    [requestId],
+  );
+}
+
+async function listDueUnnotifiedTransportRequests(limit = 20) {
+  const pool = getDatabasePool();
+  const [rows] = await pool.query(
+    `SELECT st.*
+       FROM solicitacoes_transporte st
+       LEFT JOIN solicitacoes_transporte_notificacoes stn
+         ON stn.solicitacao_id = st.id
+        AND stn.canal = 'push'
+      WHERE st.situacao = 'PENDENTE'
+        AND st.agendado_para <= NOW()
+        AND stn.id IS NULL
+      ORDER BY st.agendado_para ASC, st.id ASC
+      LIMIT ?`,
+    [limit],
   );
 
   return rows;
@@ -221,23 +264,23 @@ async function sendTestNotification(user) {
 
 async function notifyNewTransportRequest(request, options = {}) {
   if (options.notificar_motoristas === false || options.suprimir_notificacao === true) {
-    return;
+    return false;
   }
 
   if (!isRequestDueForNotification(request)) {
-    return;
+    return false;
   }
 
   if (!configureWebPush()) {
     console.warn("Notificacao push ignorada: VAPID nao configurado.");
-    return;
+    return false;
   }
 
   if (!request?.instituicao_id) {
     console.warn("Notificacao push ignorada: solicitacao sem instituicao.", {
       requestId: request?.id,
     });
-    return;
+    return false;
   }
 
   const recipients = await listRecipients(request.instituicao_id);
@@ -247,7 +290,7 @@ async function notifyNewTransportRequest(request, options = {}) {
       institutionId: request.instituicao_id,
       requestId: request.id,
     });
-    return;
+    return false;
   }
 
   const payload = {
@@ -265,7 +308,48 @@ async function notifyNewTransportRequest(request, options = {}) {
     },
   };
 
-  await Promise.all(recipients.map((row) => sendToSubscription(row, payload)));
+  const results = await Promise.all(recipients.map((row) => sendToSubscription(row, payload)));
+  const sent = results.some((result) => result.ok);
+
+  if (sent) {
+    await markTransportRequestNotified(request.id);
+  }
+
+  return sent;
+}
+
+async function notifyDueTransportRequests() {
+  const requests = await listDueUnnotifiedTransportRequests();
+
+  for (const request of requests) {
+    await notifyNewTransportRequest(request);
+  }
+}
+
+function startScheduledTransportRequestNotifications() {
+  if (scheduledNotificationTimer) {
+    return;
+  }
+
+  const run = () => {
+    notifyDueTransportRequests().catch((error) => {
+      console.error("Falha ao processar notificacoes agendadas de transporte.", {
+        message: error.message,
+      });
+    });
+  };
+
+  run();
+  scheduledNotificationTimer = setInterval(run, scheduledNotificationIntervalMs);
+}
+
+function stopScheduledTransportRequestNotifications() {
+  if (!scheduledNotificationTimer) {
+    return;
+  }
+
+  clearInterval(scheduledNotificationTimer);
+  scheduledNotificationTimer = null;
 }
 
 module.exports = {
@@ -275,4 +359,6 @@ module.exports = {
   removeSubscription,
   saveSubscription,
   sendTestNotification,
+  startScheduledTransportRequestNotifications,
+  stopScheduledTransportRequestNotifications,
 };
