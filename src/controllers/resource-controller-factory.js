@@ -1,4 +1,7 @@
+const { getDatabasePool } = require("../database/connection");
 const createHttpError = require("../utils/http-error");
+
+const driverOpenRequestSituations = ["EM_ANDAMENTO", "ACEITA"];
 
 function pickWritableData(body, writableColumns) {
   return writableColumns.reduce((data, column) => {
@@ -48,6 +51,111 @@ function hideResponseColumns(data, hiddenColumns = []) {
   }
 
   return hideColumns(data, hiddenColumns);
+}
+
+function isDriverTransportRequestList(request, definition) {
+  return (
+    definition.route === "solicitacoes-transporte" &&
+    request.authUser?.perfil === "MOTORISTA"
+  );
+}
+
+function shouldIncludeDriverOpenRequests(query) {
+  const situation = String(query.situacao || "").toUpperCase();
+
+  return !situation || ["PENDENTE", ...driverOpenRequestSituations].includes(situation);
+}
+
+async function findDriverIdForUser(request) {
+  const pool = getDatabasePool();
+  const [rows] = await pool.query(
+    `SELECT id
+       FROM motoristas
+      WHERE usuario_id = ?
+        AND instituicao_id = ?
+        AND ativo = TRUE
+      LIMIT 1`,
+    [request.authUser?.id, request.authUser?.instituicao_id],
+  );
+
+  return rows[0]?.id || null;
+}
+
+function mergeUniqueById(items) {
+  const seen = new Set();
+  const merged = [];
+
+  for (const item of items) {
+    const key = String(item.id);
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    merged.push(item);
+  }
+
+  return merged;
+}
+
+function sortDriverOpenRequestsFirst(items, driverId) {
+  const situationPriority = new Map(
+    driverOpenRequestSituations.map((situation, index) => [situation, index]),
+  );
+
+  return [...items].sort((a, b) => {
+    const aOwnOpen =
+      Number(a.motorista_id) === Number(driverId) &&
+      situationPriority.has(a.situacao);
+    const bOwnOpen =
+      Number(b.motorista_id) === Number(driverId) &&
+      situationPriority.has(b.situacao);
+
+    if (aOwnOpen && bOwnOpen) {
+      return situationPriority.get(a.situacao) - situationPriority.get(b.situacao);
+    }
+
+    if (aOwnOpen) {
+      return -1;
+    }
+
+    if (bOwnOpen) {
+      return 1;
+    }
+
+    return 0;
+  });
+}
+
+async function includeDriverOpenTransportRequests(request, repository, query, items) {
+  if (!shouldIncludeDriverOpenRequests(query)) {
+    return items;
+  }
+
+  const driverId = await findDriverIdForUser(request);
+
+  if (!driverId) {
+    return items;
+  }
+
+  const openRequests = [];
+
+  for (const situation of driverOpenRequestSituations) {
+    const requests = await repository.list({
+      ...query,
+      motorista_id: driverId,
+      offset: 0,
+      situacao: situation,
+    });
+
+    openRequests.push(...requests);
+  }
+
+  return sortDriverOpenRequestsFirst(
+    mergeUniqueById([...openRequests, ...items]),
+    driverId,
+  );
 }
 
 function isMaster(request) {
@@ -227,7 +335,18 @@ function createResourceController(repository, definition) {
   async function list(request, response, next) {
     try {
       assertResourceAllowed(request, definition, "list");
-      const items = await repository.list(normalizeTenantQuery(request, definition));
+      const query = normalizeTenantQuery(request, definition);
+      let items = await repository.list(query);
+
+      if (isDriverTransportRequestList(request, definition)) {
+        items = await includeDriverOpenTransportRequests(
+          request,
+          repository,
+          query,
+          items,
+        );
+      }
+
       response.json({ data: sanitize(items) });
     } catch (error) {
       next(error);
