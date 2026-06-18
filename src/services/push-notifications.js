@@ -248,18 +248,6 @@ async function claimRequestNotification(requestId) {
   return result.affectedRows > 0;
 }
 
-async function releaseRequestNotification(requestId) {
-  if (!requestId) {
-    return;
-  }
-
-  const pool = getDatabasePool();
-  await pool.execute(
-    "DELETE FROM solicitacoes_transporte_notificacoes WHERE solicitacao_id = ?",
-    [requestId],
-  );
-}
-
 async function notifyNewTransportRequest(request) {
   if (!configureWebPush()) {
     console.warn("Notificacao push ignorada: VAPID nao configurado.");
@@ -277,6 +265,12 @@ async function notifyNewTransportRequest(request) {
     return;
   }
 
+  const canSend = await claimRequestNotification(request.id);
+
+  if (!canSend) {
+    return;
+  }
+
   const recipients = await listRecipients(request.instituicao_id);
 
   if (!recipients.length) {
@@ -284,12 +278,6 @@ async function notifyNewTransportRequest(request) {
       institutionId: request.instituicao_id,
       requestId: request.id,
     });
-    return;
-  }
-
-  const canSend = await claimRequestNotification(request.id);
-
-  if (!canSend) {
     return;
   }
 
@@ -308,11 +296,7 @@ async function notifyNewTransportRequest(request) {
     },
   };
 
-  const results = await Promise.all(recipients.map((row) => sendToSubscription(row, payload)));
-
-  if (results.every((result) => !result.ok)) {
-    await releaseRequestNotification(request.id);
-  }
+  await Promise.all(recipients.map((row) => sendToSubscription(row, payload)));
 }
 
 async function notifyDueTransportRequests() {
