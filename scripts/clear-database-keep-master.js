@@ -19,43 +19,34 @@ async function main() {
       throw new Error("Nenhum usuário MASTER encontrado. Limpeza abortada.");
     }
 
-    const masterIds = masters.map((master) => Number(master.id));
-    const masterInstitutionIds = [
-      ...new Set(masters.map((master) => Number(master.instituicao_id)).filter(Boolean)),
-    ];
+    const master = masters[0];
 
     await connection.beginTransaction();
 
     await connection.query("DELETE FROM auditoria_logs");
+    await connection.query("DELETE FROM push_subscriptions");
     await connection.query("DELETE FROM chamados_suporte");
     await connection.query("DELETE FROM destinos_favoritos");
     await connection.query("DELETE FROM acompanhamentos_ambulancia");
+    await connection.query("DELETE FROM solicitacoes_transporte_notificacoes");
     await connection.query("DELETE FROM solicitacoes_transporte");
     await connection.query("DELETE FROM motoristas");
     await connection.query("DELETE FROM acompanhantes");
     await connection.query("DELETE FROM medicos");
     await connection.query("DELETE FROM unidades");
     await connection.query("DELETE FROM setores");
-    await connection.query("DELETE FROM usuarios WHERE perfil <> 'MASTER'");
-    await connection.query(
-      `DELETE FROM usuarios WHERE perfil = 'MASTER' AND id NOT IN (${masterIds.map(() => "?").join(", ")})`,
-      masterIds,
-    );
-
-    if (masterInstitutionIds.length) {
-      await connection.query(
-        `DELETE FROM instituicoes WHERE id NOT IN (${masterInstitutionIds.map(() => "?").join(", ")})`,
-        masterInstitutionIds,
-      );
-    }
+    await connection.query("DELETE FROM usuarios WHERE id <> ?", [master.id]);
+    await connection.query("DELETE FROM instituicoes WHERE id <> ?", [master.instituicao_id]);
 
     await connection.commit();
 
     const tablesToReset = [
       "auditoria_logs",
+      "push_subscriptions",
       "chamados_suporte",
       "destinos_favoritos",
       "acompanhamentos_ambulancia",
+      "solicitacoes_transporte_notificacoes",
       "solicitacoes_transporte",
       "motoristas",
       "acompanhantes",
