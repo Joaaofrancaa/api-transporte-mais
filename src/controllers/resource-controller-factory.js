@@ -227,10 +227,10 @@ function assertResourceAllowed(request, definition, action) {
       return;
     }
 
-    if (definition.route !== "usuarios") {
+    if (!["instituicoes", "usuarios"].includes(definition.route)) {
       throw createHttpError(
         403,
-        "O ADM master só pode gerenciar administradores.",
+        "O ADM master só pode gerenciar instituições e administradores.",
       );
     }
 
