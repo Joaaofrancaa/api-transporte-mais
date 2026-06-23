@@ -1,6 +1,7 @@
 const createApp = require("./app");
 const env = require("./config/env");
 const { closeDatabasePool } = require("./database/connection");
+const { ensureFcmPushTokensTable } = require("./database/ensure-fcm-push-tokens");
 const { ensurePushSubscriptionsTable } = require("./database/ensure-push-subscriptions");
 const {
   ensureTransportRequestNotificationsTable,
@@ -16,6 +17,7 @@ const {
 
 async function startServer() {
   await ensurePushSubscriptionsTable();
+  await ensureFcmPushTokensTable();
   await ensureTransportRequestNotificationsTable();
 
   const app = createApp();

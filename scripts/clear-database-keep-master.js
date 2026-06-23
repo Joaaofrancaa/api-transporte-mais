@@ -24,6 +24,7 @@ async function main() {
     await connection.beginTransaction();
 
     await connection.query("DELETE FROM auditoria_logs");
+    await connection.query("DELETE FROM fcm_push_tokens");
     await connection.query("DELETE FROM push_subscriptions");
     await connection.query("DELETE FROM chamados_suporte");
     await connection.query("DELETE FROM destinos_favoritos");
@@ -42,6 +43,7 @@ async function main() {
 
     const tablesToReset = [
       "auditoria_logs",
+      "fcm_push_tokens",
       "push_subscriptions",
       "chamados_suporte",
       "destinos_favoritos",

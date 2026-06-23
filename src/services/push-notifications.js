@@ -2,6 +2,10 @@ const webPush = require("web-push");
 
 const env = require("../config/env");
 const { getDatabasePool } = require("../database/connection");
+const {
+  isFcmConfigured,
+  sendTransportRequestNotification: sendFcmTransportRequestNotification,
+} = require("./fcm-notifications");
 
 const recipientProfiles = ["MOTORISTA"];
 const dueNotificationIntervalMs = 5 * 1000;
@@ -302,8 +306,11 @@ async function notifyNewTransportRequest(request, options = {}) {
     return { configured: true, sent: 0, failed: 0, skipped: true };
   }
 
-  if (!configureWebPush()) {
-    console.warn("Notificacao push ignorada: VAPID nao configurado.");
+  const webPushConfigured = configureWebPush();
+  const fcmConfigured = isFcmConfigured();
+
+  if (!webPushConfigured && !fcmConfigured) {
+    console.warn("Notificacao push ignorada: VAPID e Firebase nao configurados.");
     return { configured: false, sent: 0, failed: 0, skipped: true };
   }
 
@@ -314,18 +321,8 @@ async function notifyNewTransportRequest(request, options = {}) {
     return { configured: true, sent: 0, failed: 0, skipped: true };
   }
 
-  const recipients = await listRecipients(request.instituicao_id);
-
-  if (!recipients.length) {
-    console.warn("Notificacao push ignorada: nenhum motorista com inscricao ativa.", {
-      institutionId: request.instituicao_id,
-      requestId: request.id,
-    });
-    return { configured: true, sent: 0, failed: 0, skipped: true };
-  }
-
   const payload = {
-    title: "Nova solicitacao de transporte",
+    title: "TRANSPORTE!",
     body: [request.nome_destino, request.prioridade && `Prioridade: ${request.prioridade}`]
       .filter(Boolean)
       .join(" - "),
@@ -339,9 +336,31 @@ async function notifyNewTransportRequest(request, options = {}) {
     },
   };
 
-  const results = await Promise.all(recipients.map((row) => sendToSubscription(row, payload)));
-  const sent = results.filter((result) => result.ok).length;
-  const failed = results.length - sent;
+  let webSent = 0;
+  let webFailed = 0;
+
+  if (webPushConfigured) {
+    const recipients = await listRecipients(request.instituicao_id);
+
+    if (!recipients.length) {
+      console.warn("Notificacao web push ignorada: nenhum motorista com inscricao ativa.", {
+        institutionId: request.instituicao_id,
+        requestId: request.id,
+      });
+    } else {
+      const results = await Promise.all(
+        recipients.map((row) => sendToSubscription(row, payload)),
+      );
+      webSent = results.filter((result) => result.ok).length;
+      webFailed = results.length - webSent;
+    }
+  }
+
+  const fcmResult = fcmConfigured
+    ? await sendFcmTransportRequestNotification(request, payload)
+    : { configured: false, sent: 0, failed: 0, skipped: true };
+  const sent = webSent + fcmResult.sent;
+  const failed = webFailed + fcmResult.failed;
 
   if (sent > 0) {
     await markTransportRequestNotified(request.id);
@@ -351,7 +370,15 @@ async function notifyNewTransportRequest(request, options = {}) {
     configured: true,
     sent,
     failed,
-    skipped: false,
+    skipped: sent === 0 && failed === 0,
+    channels: {
+      web: {
+        configured: webPushConfigured,
+        sent: webSent,
+        failed: webFailed,
+      },
+      fcm: fcmResult,
+    },
   };
 }
 
@@ -406,7 +433,7 @@ async function listDueUnnotifiedTransportRequests(limit = 50) {
 }
 
 async function notifyDueTransportRequests() {
-  if (!isPushConfigured() || isProcessingDueNotifications) {
+  if ((!isPushConfigured() && !isFcmConfigured()) || isProcessingDueNotifications) {
     return;
   }
 

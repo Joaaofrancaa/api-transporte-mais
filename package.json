@@ -12,6 +12,7 @@
     "verify": "npm run check && npm run security:env && npm test",
     "ensure:admin-index": "node scripts/ensure-admin-per-institution-index.js",
     "ensure:tracking-column": "node scripts/ensure-institution-tracking-column.js",
+    "ensure:fcm-push": "node scripts/ensure-fcm-push-tokens-table.js",
     "ensure:security": "node scripts/ensure-security-features.js",
     "ensure:push": "node scripts/ensure-push-subscriptions-table.js",
     "backup:db": "node scripts/backup-database.js"
@@ -29,6 +30,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "firebase-admin": "^14.0.0",
     "helmet": "^8.1.0",
     "morgan": "^1.10.0",
     "mysql2": "^3.14.1",

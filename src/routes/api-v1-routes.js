@@ -2,6 +2,7 @@ const { Router } = require("express");
 
 const authController = require("../controllers/auth-controller");
 const createResourceController = require("../controllers/resource-controller-factory");
+const fcmPushTokensController = require("../controllers/fcm-push-tokens-controller");
 const pushSubscriptionsController = require("../controllers/push-subscriptions-controller");
 const solicitacoesTransporteActions = require("../controllers/solicitacoes-transporte-controller");
 const auditLogger = require("../middlewares/audit-logger");
@@ -36,6 +37,9 @@ router.get("/notificacoes-push/inscricoes/status", pushSubscriptionsController.s
 router.post("/notificacoes-push/inscricoes", pushSubscriptionsController.subscribe);
 router.post("/notificacoes-push/teste", pushSubscriptionsController.test);
 router.delete("/notificacoes-push/inscricoes", pushSubscriptionsController.unsubscribe);
+router.get("/notificacoes-push/fcm-inscricoes/status", fcmPushTokensController.status);
+router.post("/notificacoes-push/fcm-inscricoes", fcmPushTokensController.subscribe);
+router.delete("/notificacoes-push/fcm-inscricoes", fcmPushTokensController.unsubscribe);
 
 for (const definition of Object.values(resources)) {
   const repository = createCrudRepository(definition);
