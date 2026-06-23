@@ -39,28 +39,6 @@ function createToken() {
   return randomBytes(24).toString("hex");
 }
 
-function getProfileAlias(identifier) {
-  const normalizedIdentifier = normalizeText(identifier);
-
-  if (normalizedIdentifier === "SOLICITANTE") {
-    return "SOLICITANTE";
-  }
-
-  if (normalizedIdentifier === "MOTORISTA") {
-    return "MOTORISTA";
-  }
-
-  if (normalizedIdentifier === "ADM" || normalizedIdentifier === "ADMIN") {
-    return "ADMINISTRADOR";
-  }
-
-  if (normalizedIdentifier === "MASTER") {
-    return "MASTER";
-  }
-
-  return "";
-}
-
 async function login(request, response, next) {
   try {
     const { identifier, password } = request.body || {};
@@ -70,7 +48,6 @@ async function login(request, response, next) {
     }
 
     const pool = getDatabasePool();
-    const profileAlias = getProfileAlias(identifier);
     const cpfDigits = onlyDigits(identifier);
     const [rows] = await pool.query(
       `
@@ -97,7 +74,6 @@ async function login(request, response, next) {
             UPPER(u.nome_usuario) = ?
             OR UPPER(u.email) = ?
             OR REPLACE(REPLACE(REPLACE(u.cpf, '.', ''), '-', ''), ' ', '') = ?
-            OR u.perfil = ?
           )
         ORDER BY u.id DESC
       `,
@@ -105,7 +81,6 @@ async function login(request, response, next) {
         normalizeText(identifier),
         normalizeText(identifier),
         cpfDigits,
-        profileAlias,
       ],
     );
 
