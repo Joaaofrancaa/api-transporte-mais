@@ -1,6 +1,7 @@
 const { Router } = require("express");
 
 const authController = require("../controllers/auth-controller");
+const bootstrapController = require("../controllers/bootstrap-controller");
 const createResourceController = require("../controllers/resource-controller-factory");
 const fcmPushTokensController = require("../controllers/fcm-push-tokens-controller");
 const pushSubscriptionsController = require("../controllers/push-subscriptions-controller");
@@ -32,6 +33,7 @@ router.post("/autenticacao/redefinir-senha", authController.resetPassword);
 router.use(authentication);
 router.use(auditLogger);
 
+router.get("/bootstrap", bootstrapController.bootstrap);
 router.get("/notificacoes-push/chave-publica", pushSubscriptionsController.getPublicKey);
 router.get("/notificacoes-push/inscricoes/status", pushSubscriptionsController.status);
 router.post("/notificacoes-push/inscricoes", pushSubscriptionsController.subscribe);
