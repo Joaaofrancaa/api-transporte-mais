@@ -99,7 +99,7 @@ async function login(request, response, next) {
             OR REPLACE(REPLACE(REPLACE(u.cpf, '.', ''), '-', ''), ' ', '') = ?
             OR u.perfil = ?
           )
-        ORDER BY u.id
+        ORDER BY u.id DESC
       `,
       [
         normalizeText(identifier),

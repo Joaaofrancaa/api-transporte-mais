@@ -329,6 +329,32 @@ async function assertSingleAdminPerInstitution(repository, data, currentItem) {
   }
 }
 
+async function assertUniqueUsername(data, currentItem) {
+  if (!Object.prototype.hasOwnProperty.call(data, "nome_usuario")) {
+    return;
+  }
+
+  const username = String(data.nome_usuario || "").trim();
+
+  if (!username) {
+    return;
+  }
+
+  const pool = getDatabasePool();
+  const [rows] = await pool.query(
+    `SELECT id
+       FROM usuarios
+      WHERE UPPER(nome_usuario) = UPPER(?)
+        AND id <> ?
+      LIMIT 1`,
+    [username, currentItem?.id || 0],
+  );
+
+  if (rows.length) {
+    throw createHttpError(409, "Este nome de usuário já está cadastrado. Use outro.");
+  }
+}
+
 function createResourceController(repository, definition) {
   const sanitize = (data) => hideResponseColumns(data, definition.hiddenColumns);
 
@@ -383,6 +409,7 @@ function createResourceController(repository, definition) {
 
       if (definition.route === "usuarios") {
         assertUserWriteAllowed(request, data);
+        await assertUniqueUsername(data);
         await assertSingleAdminPerInstitution(repository, data);
       }
 
@@ -418,6 +445,7 @@ function createResourceController(repository, definition) {
 
       if (definition.route === "usuarios") {
         assertUserWriteAllowed(request, data, currentItem);
+        await assertUniqueUsername(data, currentItem);
         await assertSingleAdminPerInstitution(repository, data, currentItem);
       }
 
