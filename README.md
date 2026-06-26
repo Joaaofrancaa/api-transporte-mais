@@ -55,3 +55,5 @@ com senha `123456`. Para outro banco, defina `TEST_ADMIN_LOGIN`,
 
 Consulte `agent/sobre-api.md` para a documentacao tecnica e as decisoes
 iniciais do projeto.
+
+## 👨‍💻 Desenvolvedor **João Marcos de França**
