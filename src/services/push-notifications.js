@@ -10,6 +10,7 @@ const {
 const recipientProfiles = ["MOTORISTA"];
 const dueNotificationIntervalMs = 5 * 1000;
 const cardRenderGracePeriodMs = 0;
+const defaultNotificationLeadMinutes = 60;
 const maxNotificationTimeoutMs = 2 ** 31 - 1;
 const notificationTimeZone = process.env.APP_TIME_ZONE || "America/Sao_Paulo";
 
@@ -33,13 +34,42 @@ function getRequestScheduledDate(request) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function isRequestDueForNotification(request) {
-  const scheduledDate = getRequestScheduledDate(request);
+function getNotificationLeadMs(options = {}) {
+  if (
+    !Object.prototype.hasOwnProperty.call(
+      options,
+      "notificar_motoristas_antecedencia_minutos",
+    )
+  ) {
+    return defaultNotificationLeadMinutes * 60 * 1000;
+  }
 
-  return !scheduledDate || scheduledDate.getTime() <= Date.now();
+  const minutes = Number(options.notificar_motoristas_antecedencia_minutos);
+
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    return 0;
+  }
+
+  return minutes * 60 * 1000;
 }
 
-function getCurrentLocalSqlDateTime() {
+function getNotificationDueDate(request, options = {}) {
+  const scheduledDate = getRequestScheduledDate(request);
+
+  if (!scheduledDate) {
+    return null;
+  }
+
+  return new Date(scheduledDate.getTime() - getNotificationLeadMs(options));
+}
+
+function isRequestDueForNotification(request, options = {}) {
+  const dueDate = getNotificationDueDate(request, options);
+
+  return !dueDate || dueDate.getTime() <= Date.now();
+}
+
+function getCurrentLocalSqlDateTime(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     day: "2-digit",
     hour: "2-digit",
@@ -50,7 +80,7 @@ function getCurrentLocalSqlDateTime() {
     second: "2-digit",
     timeZone: notificationTimeZone,
     year: "numeric",
-  }).formatToParts(new Date());
+  }).formatToParts(date);
   const values = Object.fromEntries(
     parts
       .filter((part) => part.type !== "literal")
@@ -61,15 +91,19 @@ function getCurrentLocalSqlDateTime() {
 }
 
 function getNotificationDelayMs(request, options = {}) {
-  const scheduledDate = getRequestScheduledDate({
-    agendado_para: options.agendado_para || request?.agendado_para,
-  });
-
-  if (!scheduledDate) {
+  if (options.notificar_motoristas_agora === true) {
     return cardRenderGracePeriodMs;
   }
 
-  const delayMs = scheduledDate.getTime() - Date.now() + cardRenderGracePeriodMs;
+  const dueDate = getNotificationDueDate({
+    agendado_para: options.agendado_para || request?.agendado_para,
+  }, options);
+
+  if (!dueDate) {
+    return cardRenderGracePeriodMs;
+  }
+
+  const delayMs = dueDate.getTime() - Date.now() + cardRenderGracePeriodMs;
 
   if (delayMs <= cardRenderGracePeriodMs) {
     return cardRenderGracePeriodMs;
@@ -276,7 +310,7 @@ async function getTransportRequestNotificationReadiness(requestId) {
 
   const pool = getDatabasePool();
   const [rows] = await pool.query(
-    `SELECT situacao, agendado_para <= ? AS vencida
+    `SELECT situacao, agendado_para, agendado_para <= ? AS vencida
        FROM solicitacoes_transporte
       WHERE id = ?
       LIMIT 1`,
@@ -291,18 +325,26 @@ async function notifyNewTransportRequest(request, options = {}) {
     return { configured: true, sent: 0, failed: 0, skipped: true };
   }
 
+  const forceImmediateNotification = options.notificar_motoristas_agora === true;
   const readiness = await getTransportRequestNotificationReadiness(request?.id);
 
   if (readiness) {
     const isPending = readiness.situacao === "PENDENTE";
-    const isDue = Number(readiness.vencida) === 1;
+    const isDue =
+      forceImmediateNotification ||
+      isRequestDueForNotification(readiness, options) ||
+      Number(readiness.vencida) === 1;
 
     if (!isPending || !isDue) {
       return { configured: true, sent: 0, failed: 0, skipped: true };
     }
   }
 
-  if (!readiness && !isRequestDueForNotification(request)) {
+  if (
+    !forceImmediateNotification &&
+    !readiness &&
+    !isRequestDueForNotification(request, options)
+  ) {
     return { configured: true, sent: 0, failed: 0, skipped: true };
   }
 
@@ -415,7 +457,9 @@ async function markTransportRequestNotified(requestId) {
 async function listDueUnnotifiedTransportRequests(limit = 50) {
   const pool = getDatabasePool();
   const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 50, 1), 200);
-  const currentLocalDateTime = getCurrentLocalSqlDateTime();
+  const notificationLookaheadDateTime = getCurrentLocalSqlDateTime(
+    new Date(Date.now() + defaultNotificationLeadMinutes * 60 * 1000),
+  );
   const [rows] = await pool.query(
     `SELECT st.*
        FROM solicitacoes_transporte st
@@ -426,7 +470,7 @@ async function listDueUnnotifiedTransportRequests(limit = 50) {
         AND stn.id IS NULL
       ORDER BY st.agendado_para ASC, st.id ASC
       LIMIT ?`,
-    [currentLocalDateTime, safeLimit],
+    [notificationLookaheadDateTime, safeLimit],
   );
 
   return rows;
