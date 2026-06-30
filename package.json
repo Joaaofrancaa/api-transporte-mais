@@ -13,6 +13,7 @@
     "ensure:admin-index": "node scripts/ensure-admin-per-institution-index.js",
     "ensure:tracking-column": "node scripts/ensure-institution-tracking-column.js",
     "ensure:tracking-fields": "node scripts/ensure-tracking-request-fields.js",
+    "ensure:health-plans": "node scripts/ensure-health-plans-table.js",
     "ensure:fcm-push": "node scripts/ensure-fcm-push-tokens-table.js",
     "ensure:security": "node scripts/ensure-security-features.js",
     "ensure:push": "node scripts/ensure-push-subscriptions-table.js",

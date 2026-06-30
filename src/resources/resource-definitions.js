@@ -170,6 +170,14 @@ const resources = {
     writableColumns: ["instituicao_id", "nome", "tipo", "ativo"],
     requiredOnCreate: ["instituicao_id", "nome", "tipo"],
   },
+  convenios: {
+    route: "convenios",
+    tableName: "convenios",
+    tenantColumn: "instituicao_id",
+    searchableColumns: ["nome"],
+    writableColumns: ["instituicao_id", "nome", "ativo"],
+    requiredOnCreate: ["instituicao_id", "nome"],
+  },
   destinosFavoritos: {
     route: "destinos-favoritos",
     tableName: "destinos_favoritos",
