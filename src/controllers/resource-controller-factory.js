@@ -274,6 +274,7 @@ function assertResourceAllowed(request, definition, action) {
 
 function assertUserWriteAllowed(request, data, currentItem) {
   const nextProfile = data.perfil || currentItem?.perfil;
+  const nextProfileBase = String(nextProfile || "").split("|")[0];
   const isOwnProfile =
     currentItem &&
     Number(currentItem.id) === Number(request.authUser?.id) &&
@@ -284,7 +285,7 @@ function assertUserWriteAllowed(request, data, currentItem) {
   }
 
   if (isMaster(request)) {
-    if (nextProfile !== "ADMINISTRADOR") {
+    if (nextProfileBase !== "ADMINISTRADOR") {
       throw createHttpError(403, "O ADM master só pode cadastrar administradores.");
     }
 
@@ -292,7 +293,7 @@ function assertUserWriteAllowed(request, data, currentItem) {
   }
 
   if (isAdmin(request)) {
-    if (!["SOLICITANTE", "MOTORISTA"].includes(nextProfile)) {
+    if (!["SOLICITANTE", "MOTORISTA"].includes(nextProfileBase)) {
       throw createHttpError(
         403,
         "O administrador só pode cadastrar solicitantes e motoristas.",
