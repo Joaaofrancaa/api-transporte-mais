@@ -295,6 +295,7 @@ const resources = {
       "saida_em",
       "retorno_em",
       "situacao",
+      "faturamento_status",
       "observacoes",
     ],
     requiredOnCreate: [
