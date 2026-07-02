@@ -8,6 +8,7 @@ const ADMIN_LOGIN = process.env.TEST_ADMIN_LOGIN || "KENGI";
 const ADMIN_PASSWORD = process.env.TEST_ADMIN_PASSWORD || "123456";
 const REQUESTER_LOGIN = process.env.TEST_REQUESTER_LOGIN || "JOAO";
 const REQUESTER_PASSWORD = process.env.TEST_REQUESTER_PASSWORD || "123456";
+const REQUESTER_CPF = process.env.TEST_REQUESTER_CPF || "222.222.222-22";
 
 let server;
 let baseUrl;
@@ -77,6 +78,17 @@ test("login retorna token e permite ler dados da própria instituição", async 
   assert.equal(response.status, 200, payload.error);
   assert.ok(Array.isArray(payload.data));
   assert.ok(payload.data.every((item) => Number(item.instituicao_id) === Number(user.instituicao_id)));
+});
+
+test("login por CPF (formatado ou só dígitos) funciona e retorna o CPF em texto puro", async () => {
+  const byUsername = await login(REQUESTER_LOGIN, REQUESTER_PASSWORD);
+  const byFormattedCpf = await login(REQUESTER_CPF, REQUESTER_PASSWORD);
+  const byDigitsCpf = await login(REQUESTER_CPF.replace(/\D/g, ""), REQUESTER_PASSWORD);
+
+  assert.equal(byFormattedCpf.id, byUsername.id);
+  assert.equal(byDigitsCpf.id, byUsername.id);
+  assert.equal(byFormattedCpf.cpf, REQUESTER_CPF);
+  assert.equal(byDigitsCpf.cpf, REQUESTER_CPF);
 });
 
 test("administrador não escapa para outra instituição pela query", async () => {

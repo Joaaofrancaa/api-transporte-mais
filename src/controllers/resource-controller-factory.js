@@ -53,6 +53,18 @@ function hideResponseColumns(data, hiddenColumns = []) {
   return hideColumns(data, hiddenColumns);
 }
 
+function transformResponseData(data, transformOutput) {
+  if (!transformOutput) {
+    return data;
+  }
+
+  if (Array.isArray(data)) {
+    return data.map((item) => (item ? transformOutput(item) : item));
+  }
+
+  return data ? transformOutput(data) : data;
+}
+
 function isDriverTransportRequestList(request, definition) {
   return (
     definition.route === "solicitacoes-transporte" &&
@@ -357,7 +369,11 @@ async function assertUniqueUsername(data, currentItem) {
 }
 
 function createResourceController(repository, definition) {
-  const sanitize = (data) => hideResponseColumns(data, definition.hiddenColumns);
+  const sanitize = (data) =>
+    hideResponseColumns(
+      transformResponseData(data, definition.transformOutput),
+      definition.hiddenColumns,
+    );
 
   async function list(request, response, next) {
     try {

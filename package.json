@@ -18,6 +18,8 @@
     "ensure:security": "node scripts/ensure-security-features.js",
     "ensure:push": "node scripts/ensure-push-subscriptions-table.js",
     "ensure:username-index": "node scripts/ensure-global-username-index.js",
+    "ensure:test-users": "node scripts/ensure-test-seed-users.js",
+    "ensure:cpf-encryption": "node scripts/ensure-cpf-encryption.js",
     "backup:db": "node scripts/backup-database.js"
   },
   "engines": {

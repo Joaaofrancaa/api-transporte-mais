@@ -7,6 +7,7 @@ const {
   hashPassword,
   verifyPassword,
 } = require("../utils/password-hash");
+const { decryptCpf, hashCpfDigits } = require("../utils/cpf-crypto");
 const { signAuthToken } = require("../utils/auth-token");
 
 const RECOVERY_CODE_TTL_MS = 10 * 60 * 1000;
@@ -49,6 +50,7 @@ async function login(request, response, next) {
 
     const pool = getDatabasePool();
     const cpfDigits = onlyDigits(identifier);
+    const cpfHash = hashCpfDigits(cpfDigits);
     const [rows] = await pool.query(
       `
         SELECT
@@ -73,14 +75,14 @@ async function login(request, response, next) {
           AND (
             UPPER(u.nome_usuario) = ?
             OR UPPER(u.email) = ?
-            OR REPLACE(REPLACE(REPLACE(u.cpf, '.', ''), '-', ''), ' ', '') = ?
+            OR u.cpf_hash = ?
           )
         ORDER BY u.id DESC
       `,
       [
         normalizeText(identifier),
         normalizeText(identifier),
-        cpfDigits,
+        cpfHash,
       ],
     );
 
@@ -98,7 +100,7 @@ async function login(request, response, next) {
         usa_acompanhamento: Boolean(user.usa_acompanhamento),
         name: user.nome,
         username: user.nome_usuario,
-        cpf: user.cpf,
+        cpf: decryptCpf(user.cpf),
         email: user.email,
         phone: user.telefone,
         sector: user.setor_nome,
@@ -118,19 +120,21 @@ async function login(request, response, next) {
 
 async function findActiveUserByCpf(cpf) {
   const pool = getDatabasePool();
-  const cpfDigits = onlyDigits(cpf);
+  const cpfHash = hashCpfDigits(onlyDigits(cpf));
   const [rows] = await pool.query(
     `
       SELECT id, cpf, email
         FROM usuarios
        WHERE ativo = TRUE
-         AND REPLACE(REPLACE(REPLACE(cpf, '.', ''), '-', ''), ' ', '') = ?
+         AND cpf_hash = ?
        LIMIT 1
     `,
-    [cpfDigits],
+    [cpfHash],
   );
 
-  return rows[0] || null;
+  const user = rows[0];
+
+  return user ? { ...user, cpf: decryptCpf(user.cpf) } : null;
 }
 
 function validateRecovery({ cpf, codigo, token_recuperacao }) {

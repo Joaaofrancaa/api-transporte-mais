@@ -55,6 +55,10 @@ module.exports = Object.freeze({
   jwt: {
     secret: process.env.JWT_SECRET || "",
   },
+  cpf: {
+    encryptionKey: process.env.CPF_ENCRYPTION_KEY || "",
+    hashSecret: process.env.CPF_HASH_SECRET || "",
+  },
   push: {
     publicKey: process.env.VAPID_PUBLIC_KEY || "",
     privateKey: process.env.VAPID_PRIVATE_KEY || "",

@@ -5,6 +5,12 @@ const {
 } = require("../services/push-notifications");
 const createHttpError = require("../utils/http-error");
 const { hashPasswordField } = require("../utils/password-hash");
+const {
+  decryptCpf,
+  encryptCpf,
+  hashCpfDigits,
+  isEncryptedCpf,
+} = require("../utils/cpf-crypto");
 
 function normalizeUserData(data) {
   if (["ADMINISTRADOR", "MASTER"].includes(data.perfil)) {
@@ -17,8 +23,34 @@ function normalizeUserData(data) {
   return data;
 }
 
+function encryptCpfField(data) {
+  if (!Object.prototype.hasOwnProperty.call(data, "cpf")) {
+    return data;
+  }
+
+  const cpf = data.cpf;
+
+  if (!cpf || isEncryptedCpf(cpf)) {
+    return data;
+  }
+
+  return {
+    ...data,
+    cpf: encryptCpf(cpf),
+    cpf_hash: hashCpfDigits(cpf),
+  };
+}
+
+function decryptUserCpf(item) {
+  if (!item || !Object.prototype.hasOwnProperty.call(item, "cpf")) {
+    return item;
+  }
+
+  return { ...item, cpf: decryptCpf(item.cpf) };
+}
+
 function prepareUserData(data) {
-  return hashPasswordField(normalizeUserData(data));
+  return encryptCpfField(hashPasswordField(normalizeUserData(data)));
 }
 
 async function ensureInstitutionUsesTracking(data) {
@@ -86,7 +118,7 @@ const resources = {
     route: "usuarios",
     tableName: "usuarios",
     tenantColumn: "instituicao_id",
-    searchableColumns: ["nome", "nome_usuario", "cpf", "email"],
+    searchableColumns: ["nome", "nome_usuario", "email"],
     writableColumns: [
       "instituicao_id",
       "setor_id",
@@ -108,9 +140,10 @@ const resources = {
       "perfil",
       "senha_hash",
     ],
-    hiddenColumns: ["senha_hash"],
+    hiddenColumns: ["senha_hash", "cpf_hash"],
     beforeCreate: prepareUserData,
     beforeUpdate: prepareUserData,
+    transformOutput: decryptUserCpf,
   },
   motoristas: {
     route: "motoristas",
