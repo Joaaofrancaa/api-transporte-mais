@@ -111,7 +111,7 @@ const resources = {
     route: "instituicoes",
     tableName: "instituicoes",
     searchableColumns: ["nome", "cnpj"],
-    writableColumns: ["nome", "cnpj", "usa_acompanhamento", "ativo"],
+    writableColumns: ["nome", "cnpj", "endereco", "cep", "telefone", "usa_acompanhamento", "ativo"],
     requiredOnCreate: ["nome"],
   },
   usuarios: {
