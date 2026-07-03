@@ -1,4 +1,5 @@
 const { getDatabasePool } = require("../database/connection");
+const { decryptCpf } = require("../utils/cpf-crypto");
 
 function normalizeLimit(value) {
   const limit = Number(value || 200);
@@ -14,6 +15,16 @@ function hidePasswordHash(user) {
   const visibleUser = { ...user };
   delete visibleUser.senha_hash;
   return visibleUser;
+}
+
+function sanitizeCpfRow(row) {
+  if (!row || !Object.prototype.hasOwnProperty.call(row, "cpf")) {
+    return row;
+  }
+
+  const visibleRow = { ...row, cpf: decryptCpf(row.cpf) };
+  delete visibleRow.cpf_hash;
+  return visibleRow;
 }
 
 async function queryList(connection, tableName, { institutionId, tenant = true, limit }) {
@@ -62,7 +73,7 @@ async function listUsers(connection, { institutionId, isMaster, limit }) {
     params,
   );
 
-  return rows.map(hidePasswordHash);
+  return rows.map((row) => sanitizeCpfRow(hidePasswordHash(row)));
 }
 
 async function bootstrap(request, response, next) {
@@ -107,7 +118,7 @@ async function bootstrap(request, response, next) {
     const [
       setores,
       unidades,
-      motoristas,
+      motoristasRaw,
       medicos,
       acompanhantes,
       convenios,
@@ -123,6 +134,7 @@ async function bootstrap(request, response, next) {
       queryList(connection, "solicitacoes_transporte", { institutionId, limit }),
       queryList(connection, "acompanhamentos_ambulancia", { institutionId, limit }),
     ]);
+    const motoristas = motoristasRaw.map(sanitizeCpfRow);
 
     response.json({
       data: {
