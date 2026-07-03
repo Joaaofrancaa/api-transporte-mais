@@ -2,6 +2,7 @@ const { getDatabasePool } = require("./connection");
 
 const INSTITUTION_CONTACT_COLUMNS = [
   { name: "endereco", definition: "VARCHAR(255) NULL" },
+  { name: "numero", definition: "VARCHAR(20) NULL" },
   { name: "cep", definition: "VARCHAR(9) NULL" },
   { name: "telefone", definition: "VARCHAR(20) NULL" },
 ];

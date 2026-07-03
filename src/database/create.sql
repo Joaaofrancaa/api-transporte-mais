@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS instituicoes (
   nome VARCHAR(160) NOT NULL,
   cnpj VARCHAR(18) NULL,
   endereco VARCHAR(255) NULL,
+  numero VARCHAR(20) NULL,
   cep VARCHAR(9) NULL,
   telefone VARCHAR(20) NULL,
   usa_acompanhamento BOOLEAN NOT NULL DEFAULT TRUE,
