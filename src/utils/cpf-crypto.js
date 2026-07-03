@@ -40,7 +40,9 @@ function getHashSecret() {
 }
 
 function isEncryptedCpf(value) {
-  return String(value || "").startsWith(`${CIPHER_PREFIX}$${CIPHER_VERSION}$`);
+  return String(value || "")
+    .toLowerCase()
+    .startsWith(`${CIPHER_PREFIX}$${CIPHER_VERSION}$`);
 }
 
 function encryptCpf(cpf) {
@@ -66,17 +68,22 @@ function decryptCpf(storedValue) {
     return stored;
   }
 
-  const [, , ivHex, authTagHex, ciphertextHex] = stored.split("$");
-  const decipher = createDecipheriv(CIPHER_ALGO, getEncryptionKey(), Buffer.from(ivHex, "hex"));
+  try {
+    const [, , ivHex, authTagHex, ciphertextHex] = stored.split("$");
+    const decipher = createDecipheriv(CIPHER_ALGO, getEncryptionKey(), Buffer.from(ivHex, "hex"));
 
-  decipher.setAuthTag(Buffer.from(authTagHex, "hex"));
+    decipher.setAuthTag(Buffer.from(authTagHex, "hex"));
 
-  const plaintext = Buffer.concat([
-    decipher.update(Buffer.from(ciphertextHex, "hex")),
-    decipher.final(),
-  ]);
+    const plaintext = Buffer.concat([
+      decipher.update(Buffer.from(ciphertextHex, "hex")),
+      decipher.final(),
+    ]);
 
-  return plaintext.toString("utf8");
+    return plaintext.toString("utf8");
+  } catch (error) {
+    console.error("CPF_DECRYPT_ERROR " + JSON.stringify({ message: error.message }));
+    return stored;
+  }
 }
 
 function hashCpfDigits(cpf) {
