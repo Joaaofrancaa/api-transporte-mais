@@ -5,6 +5,9 @@ const { ensureBillingStatusColumn } = require("./database/ensure-billing-status-
 const {
   ensureTrackingDetailsColumns,
 } = require("./database/ensure-tracking-details-columns");
+const {
+  ensureUserHealthPlansColumn,
+} = require("./database/ensure-user-health-plans-column");
 const { ensureUserProfileColumn } = require("./database/ensure-user-profile-column");
 const { ensureFcmPushTokensTable } = require("./database/ensure-fcm-push-tokens");
 const { ensurePushSubscriptionsTable } = require("./database/ensure-push-subscriptions");
@@ -26,6 +29,7 @@ async function startServer() {
   await ensureTransportRequestNotificationsTable();
   await ensureBillingStatusColumn();
   await ensureTrackingDetailsColumns();
+  await ensureUserHealthPlansColumn();
   await ensureUserProfileColumn();
 
   const app = createApp();

@@ -128,6 +128,7 @@ const resources = {
       "email",
       "telefone",
       "perfil",
+      "convenios_permitidos",
       "senha_hash",
       "ativo",
     ],

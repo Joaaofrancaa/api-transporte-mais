@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   email VARCHAR(160) NOT NULL,
   telefone VARCHAR(30) NULL,
   perfil VARCHAR(255) NOT NULL DEFAULT 'SOLICITANTE',
+  convenios_permitidos TEXT NULL,
   senha_hash VARCHAR(255) NOT NULL,
   ativo BOOLEAN NOT NULL DEFAULT TRUE,
   administrador_instituicao_id BIGINT UNSIGNED GENERATED ALWAYS AS (
