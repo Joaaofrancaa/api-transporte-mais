@@ -2,6 +2,9 @@ const createApp = require("./app");
 const env = require("./config/env");
 const { closeDatabasePool } = require("./database/connection");
 const { ensureBillingStatusColumn } = require("./database/ensure-billing-status-column");
+const {
+  ensureTrackingDetailsColumns,
+} = require("./database/ensure-tracking-details-columns");
 const { ensureUserProfileColumn } = require("./database/ensure-user-profile-column");
 const { ensureFcmPushTokensTable } = require("./database/ensure-fcm-push-tokens");
 const { ensurePushSubscriptionsTable } = require("./database/ensure-push-subscriptions");
@@ -22,6 +25,7 @@ async function startServer() {
   await ensureFcmPushTokensTable();
   await ensureTransportRequestNotificationsTable();
   await ensureBillingStatusColumn();
+  await ensureTrackingDetailsColumns();
   await ensureUserProfileColumn();
 
   const app = createApp();
