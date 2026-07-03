@@ -11,6 +11,9 @@ const {
 const {
   ensureInstitutionContactColumns,
 } = require("./database/ensure-institution-contact-columns");
+const {
+  ensureInstitutionLogoColumn,
+} = require("./database/ensure-institution-logo-column");
 const { ensureUserProfileColumn } = require("./database/ensure-user-profile-column");
 const { ensureFcmPushTokensTable } = require("./database/ensure-fcm-push-tokens");
 const { ensurePushSubscriptionsTable } = require("./database/ensure-push-subscriptions");
@@ -34,6 +37,7 @@ async function startServer() {
   await ensureTrackingDetailsColumns();
   await ensureUserHealthPlansColumn();
   await ensureInstitutionContactColumns();
+  await ensureInstitutionLogoColumn();
   await ensureUserProfileColumn();
 
   const app = createApp();
