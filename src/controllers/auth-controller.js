@@ -50,7 +50,7 @@ async function login(request, response, next) {
 
     const pool = getDatabasePool();
     const cpfDigits = onlyDigits(identifier);
-    const cpfHash = hashCpfDigits(cpfDigits);
+    const cpfHash = cpfDigits ? hashCpfDigits(cpfDigits) : null;
     const [rows] = await pool.query(
       `
         SELECT
@@ -75,13 +75,14 @@ async function login(request, response, next) {
           AND (
             UPPER(u.nome_usuario) = ?
             OR UPPER(u.email) = ?
-            OR u.cpf_hash = ?
+            OR (? IS NOT NULL AND u.cpf_hash = ?)
           )
         ORDER BY u.id DESC
       `,
       [
         normalizeText(identifier),
         normalizeText(identifier),
+        cpfHash,
         cpfHash,
       ],
     );
