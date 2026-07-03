@@ -322,6 +322,7 @@ const resources = {
       "codigo_carteirinha",
       "paciente_entubado",
       "tipo_trajeto",
+      "modo_espera",
       "quarto",
       "nome_destino",
       "endereco_destino",
