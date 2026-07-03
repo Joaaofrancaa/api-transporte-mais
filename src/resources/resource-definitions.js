@@ -41,7 +41,7 @@ function encryptCpfField(data) {
   };
 }
 
-function decryptUserCpf(item) {
+function decryptCpfField(item) {
   if (!item || !Object.prototype.hasOwnProperty.call(item, "cpf")) {
     return item;
   }
@@ -143,7 +143,7 @@ const resources = {
     hiddenColumns: ["senha_hash", "cpf_hash"],
     beforeCreate: prepareUserData,
     beforeUpdate: prepareUserData,
-    transformOutput: decryptUserCpf,
+    transformOutput: decryptCpfField,
   },
   motoristas: {
     route: "motoristas",
@@ -170,6 +170,10 @@ const resources = {
       "categoria_cnh",
       "validade_cnh",
     ],
+    hiddenColumns: ["cpf_hash"],
+    beforeCreate: encryptCpfField,
+    beforeUpdate: encryptCpfField,
+    transformOutput: decryptCpfField,
   },
   setores: {
     route: "setores",

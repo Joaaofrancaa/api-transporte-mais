@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const mysql = require("mysql2/promise");
+const { encryptCpf, hashCpfDigits, isEncryptedCpf } = require("../src/utils/cpf-crypto");
 
 function normalizeSqlForRailway(sql) {
   return sql
@@ -76,6 +77,21 @@ async function keepOnlyOneMaster(connection) {
   }
 }
 
+async function backfillCpfHashes(connection, tableName) {
+  const [rows] = await connection.query(`SELECT id, cpf FROM ${tableName}`);
+
+  for (const row of rows) {
+    if (isEncryptedCpf(row.cpf)) {
+      continue;
+    }
+
+    await connection.query(
+      `UPDATE ${tableName} SET cpf = ?, cpf_hash = ? WHERE id = ?`,
+      [encryptCpf(row.cpf), hashCpfDigits(row.cpf), row.id],
+    );
+  }
+}
+
 async function dropExistingTables(connection) {
   await connection.query("SET FOREIGN_KEY_CHECKS = 0");
   try {
@@ -127,7 +143,15 @@ async function main() {
   try {
     await dropExistingTables(connection);
     await connection.query(createSql);
+
+    await connection.query("ALTER TABLE usuarios MODIFY COLUMN cpf_hash VARCHAR(255) NULL");
+    await connection.query("ALTER TABLE motoristas MODIFY COLUMN cpf_hash VARCHAR(255) NULL");
     await connection.query(insertsSql);
+    await backfillCpfHashes(connection, "usuarios");
+    await backfillCpfHashes(connection, "motoristas");
+    await connection.query("ALTER TABLE usuarios MODIFY COLUMN cpf_hash VARCHAR(255) NOT NULL");
+    await connection.query("ALTER TABLE motoristas MODIFY COLUMN cpf_hash VARCHAR(255) NOT NULL");
+
     await keepOnlyOneMaster(connection);
 
     const [users] = await connection.query(
