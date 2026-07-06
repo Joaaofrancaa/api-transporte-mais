@@ -316,6 +316,7 @@ const resources = {
       "medico_id",
       "acompanhante_id",
       "motorista_id",
+      "solicitante_usuario_id",
       "tipo",
       "nome_paciente",
       "convenio",

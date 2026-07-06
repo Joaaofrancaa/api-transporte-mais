@@ -6,6 +6,9 @@ const {
   ensureTrackingDetailsColumns,
 } = require("./database/ensure-tracking-details-columns");
 const {
+  ensureTrackingRequesterColumn,
+} = require("./database/ensure-tracking-requester-column");
+const {
   ensureUserHealthPlansColumn,
 } = require("./database/ensure-user-health-plans-column");
 const {
@@ -35,6 +38,7 @@ async function startServer() {
   await ensureTransportRequestNotificationsTable();
   await ensureBillingStatusColumn();
   await ensureTrackingDetailsColumns();
+  await ensureTrackingRequesterColumn();
   await ensureUserHealthPlansColumn();
   await ensureInstitutionContactColumns();
   await ensureInstitutionLogoColumn();
