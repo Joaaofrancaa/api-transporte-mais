@@ -5,6 +5,7 @@ const bootstrapController = require("../controllers/bootstrap-controller");
 const createResourceController = require("../controllers/resource-controller-factory");
 const fcmPushTokensController = require("../controllers/fcm-push-tokens-controller");
 const pushSubscriptionsController = require("../controllers/push-subscriptions-controller");
+const siteContactController = require("../controllers/site-contact-controller");
 const solicitacoesTransporteActions = require("../controllers/solicitacoes-transporte-controller");
 const auditLogger = require("../middlewares/audit-logger");
 const authentication = require("../middlewares/authentication");
@@ -29,6 +30,7 @@ router.post(
   authController.validatePasswordRecoveryCode,
 );
 router.post("/autenticacao/redefinir-senha", authController.resetPassword);
+router.post("/contato-site", siteContactController.send);
 
 router.use(authentication);
 router.use(auditLogger);

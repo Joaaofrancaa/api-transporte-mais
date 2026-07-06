@@ -125,17 +125,31 @@ function escapeDataLines(value) {
   return String(value).replace(/^\./gm, "..");
 }
 
+function encodeHeaderValue(value) {
+  const text = String(value ?? "");
+
+  if (/^[\x20-\x7e]*$/.test(text)) {
+    return text;
+  }
+
+  return `=?UTF-8?B?${encodeBase64(text)}?=`;
+}
+
+function normalizeLineEndings(value) {
+  return String(value ?? "").replace(/\r\n/g, "\n").replace(/\n/g, "\r\n");
+}
+
 function buildMessage({ from, replyTo, to, subject, text }) {
   return [
     `From: ${from}`,
     replyTo ? `Reply-To: ${replyTo}` : "",
     `To: ${to}`,
-    `Subject: ${subject}`,
+    `Subject: ${encodeHeaderValue(subject)}`,
     "MIME-Version: 1.0",
     "Content-Type: text/plain; charset=UTF-8",
     "Content-Transfer-Encoding: 8bit",
     "",
-    text,
+    normalizeLineEndings(text),
   ].filter(Boolean).join("\r\n");
 }
 
