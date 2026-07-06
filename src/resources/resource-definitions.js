@@ -280,6 +280,7 @@ const resources = {
       "agendado_para",
       "prioridade",
       "situacao",
+      "is_rotina",
       "observacoes_solicitante",
       "aceito_em",
       "iniciado_em",
