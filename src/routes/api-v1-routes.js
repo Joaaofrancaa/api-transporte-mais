@@ -30,6 +30,8 @@ router.post(
   authController.validatePasswordRecoveryCode,
 );
 router.post("/autenticacao/redefinir-senha", authController.resetPassword);
+router.post("/autenticacao/alterar-senha", authController.changePassword);
+router.post("/autenticacao/alterar-email", authController.changeEmail);
 router.post("/contato-site", siteContactController.send);
 
 router.use(authentication);

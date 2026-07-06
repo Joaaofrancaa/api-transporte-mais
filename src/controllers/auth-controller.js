@@ -269,9 +269,98 @@ async function resetPassword(request, response, next) {
   }
 }
 
+async function changePassword(request, response, next) {
+  try {
+    const { identifier, senha_atual, nova_senha } = request.body || {};
+
+    if (!identifier || !senha_atual || !nova_senha) {
+      throw createHttpError(400, "Informe usuário, senha atual e nova senha.");
+    }
+
+    if (String(nova_senha).length < 6) {
+      throw createHttpError(400, "A nova senha deve ter pelo menos 6 caracteres.");
+    }
+
+    const pool = getDatabasePool();
+    const cpfHash = hashCpfDigits(onlyDigits(identifier));
+    const [rows] = await pool.query(
+      `SELECT id, senha_hash FROM usuarios
+       WHERE ativo = TRUE
+         AND (UPPER(nome_usuario) = ? OR UPPER(email) = ? OR cpf_hash = ?)
+       ORDER BY id DESC`,
+      [normalizeText(identifier), normalizeText(identifier), cpfHash],
+    );
+
+    const user = rows.find((item) => verifyPassword(senha_atual, item.senha_hash));
+    if (!user) {
+      throw createHttpError(401, "Senha atual incorreta.");
+    }
+
+    await pool.query("UPDATE usuarios SET senha_hash = ? WHERE id = ?", [
+      hashPassword(nova_senha),
+      user.id,
+    ]);
+
+    response.json({ data: { senha_alterada: true } });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function changeEmail(request, response, next) {
+  try {
+    const { identifier, senha_atual, email_atual, novo_email } = request.body || {};
+
+    if (!identifier || !senha_atual || !email_atual || !novo_email) {
+      throw createHttpError(400, "Informe todos os campos obrigatórios.");
+    }
+
+    const normalizedNovo = String(novo_email).trim().toLowerCase();
+    if (!normalizedNovo.includes("@")) {
+      throw createHttpError(400, "Informe um e-mail válido.");
+    }
+
+    const pool = getDatabasePool();
+    const cpfHash = hashCpfDigits(onlyDigits(identifier));
+    const [rows] = await pool.query(
+      `SELECT id, email, senha_hash FROM usuarios
+       WHERE ativo = TRUE
+         AND (UPPER(nome_usuario) = ? OR UPPER(email) = ? OR cpf_hash = ?)
+       ORDER BY id DESC`,
+      [normalizeText(identifier), normalizeText(identifier), cpfHash],
+    );
+
+    const user = rows.find((item) => verifyPassword(senha_atual, item.senha_hash));
+    if (!user) {
+      throw createHttpError(401, "Senha atual incorreta.");
+    }
+
+    const normalizedAtual = String(email_atual).trim().toLowerCase();
+    if (String(user.email || "").trim().toLowerCase() !== normalizedAtual) {
+      throw createHttpError(400, "O e-mail atual informado não confere.");
+    }
+
+    const [existing] = await pool.query(
+      "SELECT id FROM usuarios WHERE UPPER(email) = ? AND id != ? LIMIT 1",
+      [normalizedNovo.toUpperCase(), user.id],
+    );
+    if (existing.length > 0) {
+      throw createHttpError(409, "Este e-mail já está em uso por outro usuário.");
+    }
+
+    await pool.query("UPDATE usuarios SET email = ? WHERE id = ?", [normalizedNovo, user.id]);
+
+    response.json({ data: { email_alterado: true, email: normalizedNovo } });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   login,
   requestPasswordRecovery,
   resetPassword,
   validatePasswordRecoveryCode,
+  changePassword,
+  changeEmail,
 };
