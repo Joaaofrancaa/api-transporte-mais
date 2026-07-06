@@ -322,6 +322,7 @@ const resources = {
       "nome_paciente",
       "convenio",
       "codigo_carteirinha",
+      "paciente_tipo",
       "paciente_entubado",
       "tipo_trajeto",
       "modo_espera",

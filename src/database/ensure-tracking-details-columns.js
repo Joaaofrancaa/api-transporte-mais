@@ -3,6 +3,7 @@ const { getDatabasePool } = require("./connection");
 const TRACKING_DETAILS_COLUMNS = [
   { name: "convenio", definition: "VARCHAR(60) NULL" },
   { name: "codigo_carteirinha", definition: "VARCHAR(60) NULL" },
+  { name: "paciente_tipo", definition: "VARCHAR(20) NULL" },
   { name: "paciente_entubado", definition: "VARCHAR(10) NULL" },
   { name: "tipo_trajeto", definition: "VARCHAR(30) NULL" },
   { name: "modo_espera", definition: "VARCHAR(30) NULL" },
