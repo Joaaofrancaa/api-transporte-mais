@@ -221,9 +221,7 @@ function buildTransportRequestData(request, payload = {}) {
     title: payload.title || "TRANSPORTE!",
     body:
       payload.body ||
-      [request?.nome_destino, request?.prioridade && `Prioridade: ${request.prioridade}`]
-        .filter(Boolean)
-        .join(" - ") ||
+      request?.nome_destino ||
       "Nova solicitacao recebida. Abra o atendimento.",
   };
 }

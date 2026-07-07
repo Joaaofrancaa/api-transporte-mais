@@ -12,6 +12,12 @@ const {
   ensureRequestRoutineColumn,
 } = require("./database/ensure-request-routine-column");
 const {
+  ensureRequestUnitColumn,
+} = require("./database/ensure-request-unit-column");
+const {
+  removeRequestPriorityColumn,
+} = require("./database/remove-request-priority-column");
+const {
   ensureUserHealthPlansColumn,
 } = require("./database/ensure-user-health-plans-column");
 const {
@@ -44,6 +50,8 @@ async function startServer() {
   await ensureTrackingDetailsColumns();
   await ensureTrackingRequesterColumn();
   await ensureRequestRoutineColumn();
+  await ensureRequestUnitColumn();
+  await removeRequestPriorityColumn();
   await ensureUserHealthPlansColumn();
   await ensureInstitutionContactColumns();
   await ensureInstitutionLogoColumn();

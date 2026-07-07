@@ -73,6 +73,7 @@ async function ensureInstitutionUsesTracking(data) {
 
 const editableSolicitacaoFields = new Set([
   "setor_origem_id",
+  "unidade_id",
   "tipo",
   "nome_paciente",
   "nome_destino",
@@ -82,7 +83,6 @@ const editableSolicitacaoFields = new Set([
   "longitude_destino",
   "consulta_rota_destino",
   "agendado_para",
-  "prioridade",
   "observacoes_solicitante",
 ]);
 
@@ -266,16 +266,17 @@ const resources = {
     filterableColumns: [
       "solicitante_usuario_id",
       "setor_origem_id",
+      "unidade_id",
       "motorista_id",
       "tipo",
       "agendado_para",
-      "prioridade",
       "situacao",
     ],
     writableColumns: [
       "instituicao_id",
       "solicitante_usuario_id",
       "setor_origem_id",
+      "unidade_id",
       "motorista_id",
       "tipo",
       "nome_paciente",
@@ -286,7 +287,6 @@ const resources = {
       "longitude_destino",
       "consulta_rota_destino",
       "agendado_para",
-      "prioridade",
       "situacao",
       "is_rotina",
       "observacoes_solicitante",
@@ -308,7 +308,6 @@ const resources = {
       "nome_destino",
       "endereco_destino",
       "agendado_para",
-      "prioridade",
     ],
     beforeUpdate: prepareSolicitacaoUpdate,
     afterCreate: scheduleNewTransportRequestNotification,

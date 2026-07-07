@@ -175,6 +175,7 @@ CREATE TABLE IF NOT EXISTS solicitacoes_transporte (
   instituicao_id BIGINT UNSIGNED NOT NULL,
   solicitante_usuario_id BIGINT UNSIGNED NOT NULL,
   setor_origem_id BIGINT UNSIGNED NOT NULL,
+  unidade_id BIGINT UNSIGNED NULL,
   motorista_id BIGINT UNSIGNED NULL,
   tipo ENUM('PACIENTE', 'MATERIAL', 'DOCUMENTOS', 'COLETA_EXAMES', 'OUTROS') NOT NULL,
   nome_paciente VARCHAR(160) NULL,
@@ -185,7 +186,6 @@ CREATE TABLE IF NOT EXISTS solicitacoes_transporte (
   longitude_destino DECIMAL(10, 7) NULL,
   consulta_rota_destino TEXT NULL,
   agendado_para DATETIME NOT NULL,
-  prioridade ENUM('BAIXA', 'MEDIA', 'ALTA', 'URGENTE') NOT NULL,
   situacao ENUM('PENDENTE', 'ACEITA', 'EM_ANDAMENTO', 'CONCLUIDA', 'CANCELADA') NOT NULL DEFAULT 'PENDENTE',
   observacoes_solicitante TEXT NULL,
   aceito_em DATETIME NULL,
@@ -206,6 +206,7 @@ CREATE TABLE IF NOT EXISTS solicitacoes_transporte (
   KEY idx_solicitacoes_transporte_motorista_id (motorista_id),
   KEY idx_solicitacoes_transporte_solicitante_usuario_id (solicitante_usuario_id),
   KEY idx_solicitacoes_transporte_setor_origem_id (setor_origem_id),
+  KEY idx_solicitacoes_transporte_unidade_id (unidade_id),
   CONSTRAINT fk_solicitacoes_instituicao
     FOREIGN KEY (instituicao_id) REFERENCES instituicoes (id)
     ON UPDATE CASCADE
@@ -218,6 +219,10 @@ CREATE TABLE IF NOT EXISTS solicitacoes_transporte (
     FOREIGN KEY (setor_origem_id) REFERENCES setores (id)
     ON UPDATE CASCADE
     ON DELETE RESTRICT,
+  CONSTRAINT fk_solicitacoes_unidade
+    FOREIGN KEY (unidade_id) REFERENCES unidades (id)
+    ON UPDATE CASCADE
+    ON DELETE SET NULL,
   CONSTRAINT fk_solicitacoes_motorista
     FOREIGN KEY (motorista_id) REFERENCES motoristas (id)
     ON UPDATE CASCADE

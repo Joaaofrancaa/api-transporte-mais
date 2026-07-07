@@ -365,9 +365,7 @@ async function notifyNewTransportRequest(request, options = {}) {
 
   const payload = {
     title: "TRANSPORTE!",
-    body: [request.nome_destino, request.prioridade && `Prioridade: ${request.prioridade}`]
-      .filter(Boolean)
-      .join(" - "),
+    body: request.nome_destino || "",
     icon: "/app-icon-192.png",
     badge: "/app-icon-192.png",
     tag: `solicitacao-transporte-${request.id}`,
