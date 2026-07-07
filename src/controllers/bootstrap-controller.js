@@ -122,6 +122,7 @@ async function bootstrap(request, response, next) {
       medicos,
       acompanhantes,
       convenios,
+      empresasTransporte,
       solicitacoes,
       acompanhamentos,
     ] = await Promise.all([
@@ -131,6 +132,7 @@ async function bootstrap(request, response, next) {
       queryList(connection, "medicos", { institutionId, limit }),
       queryList(connection, "acompanhantes", { institutionId, limit }),
       queryList(connection, "convenios", { institutionId, limit }),
+      queryList(connection, "empresas_transporte", { institutionId, limit }),
       queryList(connection, "solicitacoes_transporte", { institutionId, limit }),
       queryList(connection, "acompanhamentos_ambulancia", { institutionId, limit }),
     ]);
@@ -147,6 +149,7 @@ async function bootstrap(request, response, next) {
         medicos,
         acompanhantes,
         convenios,
+        empresas_transporte: empresasTransporte,
         solicitacoes,
         acompanhamentos,
       },

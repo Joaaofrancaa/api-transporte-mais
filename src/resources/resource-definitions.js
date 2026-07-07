@@ -200,6 +200,14 @@ const resources = {
     writableColumns: ["instituicao_id", "nome", "ativo"],
     requiredOnCreate: ["instituicao_id", "nome"],
   },
+  empresasTransporte: {
+    route: "empresas-transporte",
+    tableName: "empresas_transporte",
+    tenantColumn: "instituicao_id",
+    searchableColumns: ["nome"],
+    writableColumns: ["instituicao_id", "nome", "ativo"],
+    requiredOnCreate: ["instituicao_id", "nome"],
+  },
   acompanhantes: {
     route: "acompanhantes",
     tableName: "acompanhantes",

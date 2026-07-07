@@ -21,6 +21,7 @@ const {
   ensureInstitutionLogoColumn,
 } = require("./database/ensure-institution-logo-column");
 const { ensureUserProfileColumn } = require("./database/ensure-user-profile-column");
+const { ensureTransportCompaniesTable } = require("./database/ensure-transport-companies-table");
 const { ensureFcmPushTokensTable } = require("./database/ensure-fcm-push-tokens");
 const { ensurePushSubscriptionsTable } = require("./database/ensure-push-subscriptions");
 const {
@@ -47,6 +48,7 @@ async function startServer() {
   await ensureInstitutionContactColumns();
   await ensureInstitutionLogoColumn();
   await ensureUserProfileColumn();
+  await ensureTransportCompaniesTable();
 
   const app = createApp();
   const server = app.listen(env.port, () => {
