@@ -360,7 +360,6 @@ const resources = {
       "tipo_acompanhante_historico",
       "nome_motorista_historico",
       "saida_em",
-      "retorno_em",
     ],
     beforeCreate: ensureInstitutionUsesTracking,
     beforeUpdate: ensureInstitutionUsesTracking,

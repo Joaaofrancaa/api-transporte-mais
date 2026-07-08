@@ -259,7 +259,7 @@ CREATE TABLE IF NOT EXISTS acompanhamentos_ambulancia (
   tipo_acompanhante_historico VARCHAR(30) NOT NULL,
   nome_motorista_historico VARCHAR(160) NOT NULL,
   saida_em DATETIME NOT NULL,
-  retorno_em DATETIME NOT NULL,
+  retorno_em DATETIME NULL,
   situacao ENUM('AGENDADO', 'CONCLUIDO', 'CANCELADO') NOT NULL DEFAULT 'AGENDADO',
   observacoes TEXT NULL,
   criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -296,7 +296,7 @@ CREATE TABLE IF NOT EXISTS acompanhamentos_ambulancia (
     ON UPDATE CASCADE
     ON DELETE SET NULL,
   CONSTRAINT ck_acompanhamentos_periodo
-    CHECK (retorno_em >= saida_em)
+    CHECK (retorno_em IS NULL OR retorno_em >= saida_em)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS destinos_favoritos (

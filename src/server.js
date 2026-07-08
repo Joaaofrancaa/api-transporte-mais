@@ -9,6 +9,9 @@ const {
   ensureTrackingRequesterColumn,
 } = require("./database/ensure-tracking-requester-column");
 const {
+  ensureTrackingReturnOptional,
+} = require("./database/ensure-tracking-return-optional");
+const {
   ensureRequestRoutineColumn,
 } = require("./database/ensure-request-routine-column");
 const {
@@ -49,6 +52,7 @@ async function startServer() {
   await ensureBillingStatusColumn();
   await ensureTrackingDetailsColumns();
   await ensureTrackingRequesterColumn();
+  await ensureTrackingReturnOptional();
   await ensureRequestRoutineColumn();
   await ensureRequestUnitColumn();
   await removeRequestPriorityColumn();
