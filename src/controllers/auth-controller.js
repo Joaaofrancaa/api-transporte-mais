@@ -9,6 +9,7 @@ const {
 } = require("../utils/password-hash");
 const { decryptCpf, hashCpfDigits } = require("../utils/cpf-crypto");
 const { signAuthToken } = require("../utils/auth-token");
+const { getBasePerfil } = require("../utils/perfil");
 
 const RECOVERY_CODE_TTL_MS = 10 * 60 * 1000;
 const recoveryRequests = new Map();
@@ -109,7 +110,7 @@ async function login(request, response, next) {
           MOTORISTA: "Motorista",
           ADMINISTRADOR: "Administrador",
           MASTER: "Master",
-        }[user.perfil] || user.perfil,
+        }[getBasePerfil(user.perfil)] || getBasePerfil(user.perfil),
         token: signAuthToken(user),
       },
     });

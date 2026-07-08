@@ -1,5 +1,6 @@
 const { getDatabasePool } = require("../database/connection");
 const createHttpError = require("../utils/http-error");
+const { getBasePerfil } = require("../utils/perfil");
 
 const driverOpenRequestSituations = ["EM_ANDAMENTO", "ACEITA"];
 
@@ -294,7 +295,7 @@ function assertResourceAllowed(request, definition, action) {
 
 function assertUserWriteAllowed(request, data, currentItem) {
   const nextProfile = data.perfil || currentItem?.perfil;
-  const nextProfileBase = String(nextProfile || "").split("|")[0];
+  const nextProfileBase = getBasePerfil(nextProfile);
   const isOwnProfile =
     currentItem &&
     Number(currentItem.id) === Number(request.authUser?.id) &&
@@ -330,7 +331,7 @@ async function assertSingleAdminPerInstitution(repository, data, currentItem) {
   const nextProfile = data.perfil || currentItem?.perfil;
   const institutionId = data.instituicao_id || currentItem?.instituicao_id;
 
-  if (nextProfile !== "ADMINISTRADOR" || !institutionId) {
+  if (getBasePerfil(nextProfile) !== "ADMINISTRADOR" || !institutionId) {
     return;
   }
 
@@ -340,7 +341,7 @@ async function assertSingleAdminPerInstitution(repository, data, currentItem) {
   });
   const hasAnotherAdmin = admins.some(
     (user) =>
-      user.perfil === "ADMINISTRADOR" &&
+      getBasePerfil(user.perfil) === "ADMINISTRADOR" &&
       user.ativo !== false &&
       Number(user.id) !== Number(currentItem?.id),
   );

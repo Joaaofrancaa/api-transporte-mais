@@ -1,6 +1,7 @@
 const { verifyAuthToken } = require("../utils/auth-token");
 const { getDatabasePool } = require("../database/connection");
 const createHttpError = require("../utils/http-error");
+const { getBasePerfil } = require("../utils/perfil");
 
 async function authentication(request, _response, next) {
   try {
@@ -30,7 +31,7 @@ async function authentication(request, _response, next) {
     request.authUser = {
       id: Number(activeUser.id),
       instituicao_id: activeUser.instituicao_id ? Number(activeUser.instituicao_id) : null,
-      perfil: activeUser.perfil,
+      perfil: getBasePerfil(activeUser.perfil),
     };
     next();
   } catch (error) {
