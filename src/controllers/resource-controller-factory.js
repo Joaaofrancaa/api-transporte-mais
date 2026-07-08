@@ -261,6 +261,14 @@ function assertResourceAllowed(request, definition, action) {
     return;
   }
 
+  if (
+    definition.route === "usuarios" &&
+    action === "update" &&
+    Number(request.params?.id) === Number(request.authUser?.id)
+  ) {
+    return;
+  }
+
   if (definition.route === "usuarios") {
     throw createHttpError(403, "Acesso negado para gerenciar usuários.");
   }
