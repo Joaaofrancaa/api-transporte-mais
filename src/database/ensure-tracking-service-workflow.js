@@ -12,6 +12,11 @@ const WORKFLOW_COLUMNS = [
   { name: "aceito_em", definition: "DATETIME NULL" },
   { name: "iniciado_em", definition: "DATETIME NULL" },
   { name: "finalizado_em", definition: "DATETIME NULL" },
+  // Not new, but a gap left over from the same feature work: this column
+  // was only ever added via a manual npm script, so a fresh production
+  // deploy would never get it without someone remembering to run that
+  // command. Ensuring it here too means it's covered automatically.
+  { name: "setor_origem_texto", definition: "VARCHAR(120) NULL" },
 ];
 
 async function ensureTrackingServiceWorkflow() {
@@ -34,6 +39,25 @@ async function ensureTrackingServiceWorkflow() {
       ALTER TABLE acompanhamentos_ambulancia
       MODIFY situacao ENUM(${SITUACAO_ENUM_VALUES.map((value) => `'${value}'`).join(", ")})
       NOT NULL DEFAULT 'AGENDADO'
+    `);
+  }
+
+  // "Transferência de outro hospital" (31 chars) doesn't fit in the
+  // original VARCHAR(30) — every create with that trip mode fails with a
+  // MySQL "Data too long" error. Widen it if it's still the old size.
+  const [tipoTrajetoRows] = await pool.query(
+    `SELECT CHARACTER_MAXIMUM_LENGTH
+       FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'acompanhamentos_ambulancia'
+        AND COLUMN_NAME = 'tipo_trajeto'`,
+  );
+  const tipoTrajetoLength = tipoTrajetoRows[0]?.CHARACTER_MAXIMUM_LENGTH;
+
+  if (tipoTrajetoLength != null && Number(tipoTrajetoLength) < 40) {
+    await pool.query(`
+      ALTER TABLE acompanhamentos_ambulancia
+      MODIFY tipo_trajeto VARCHAR(40) NULL
     `);
   }
 
