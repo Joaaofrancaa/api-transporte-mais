@@ -263,25 +263,34 @@ function createDispatchNotifier(config) {
     // are treated as backdated/historical entries and never notified —
     // even if forceImmediateNotification is set — instead of blasting a
     // driver about a trip that (as far as the schedule says) already
-    // happened long ago.
+    // happened a while ago.
     pastToleranceMs = null,
   } = config;
 
   let dueNotificationTimer;
   let isProcessingDueNotifications = false;
 
-  function isTooStaleToNotify(item) {
-    if (pastToleranceMs == null) {
+  // Compared entirely in SQL (like the "vencida" check below) instead of
+  // parsing item[scheduledDateField] into a JS Date: mysql2 returns
+  // DATETIME columns as Date objects built from the Node process's local
+  // timezone, which on a server not configured for America/Sao_Paulo (e.g.
+  // a UTC container) can be hours off from Date.now() — silently marking
+  // every fresh record as "too stale" and swallowing the notification.
+  async function isTooStaleToNotify(item) {
+    if (pastToleranceMs == null || !item?.id) {
       return false;
     }
 
-    const scheduledDate = getScheduledDate(item);
+    const pool = getDatabasePool();
+    const [rows] = await pool.query(
+      `SELECT ${scheduledDateField} <= DATE_SUB(?, INTERVAL ? SECOND) AS too_stale
+         FROM ${tableName}
+        WHERE id = ?
+        LIMIT 1`,
+      [getCurrentLocalSqlDateTime(), Math.round(pastToleranceMs / 1000), item.id],
+    );
 
-    if (!scheduledDate) {
-      return false;
-    }
-
-    return Date.now() - scheduledDate.getTime() > pastToleranceMs;
+    return Number(rows[0]?.too_stale) === 1;
   }
 
   function getScheduledDate(item) {
@@ -376,7 +385,7 @@ function createDispatchNotifier(config) {
       return { configured: true, sent: 0, failed: 0, skipped: true };
     }
 
-    if (isTooStaleToNotify(item)) {
+    if (await isTooStaleToNotify(item)) {
       return { configured: true, sent: 0, failed: 0, skipped: true };
     }
 
@@ -574,10 +583,10 @@ const trackingNotifier = createDispatchNotifier({
   notificationsFkColumn: "acompanhamento_id",
   scheduledDateField: "saida_em",
   pendingSituacao: "AGENDADO",
-  // Acompanhamentos are usually dispatched right away, but staff can also
-  // backdate one for record-keeping. Don't page a driver about a trip whose
-  // departure is more than 2 minutes in the past — treat it as historical.
-  pastToleranceMs: 2 * 60 * 1000,
+  // Acompanhamentos should notify right away — but if staff entered a
+  // departure that's already more than 10 minutes in the past (a backdated,
+  // record-keeping-only entry), don't page a driver about it.
+  pastToleranceMs: 10 * 60 * 1000,
   buildPayload: (record) => ({
     title: "TRANSPORTE!",
     body: record.nome_destino || record.nome_paciente || "",
