@@ -249,6 +249,7 @@ CREATE TABLE IF NOT EXISTS acompanhamentos_ambulancia (
   codigo_carteirinha VARCHAR(60) NULL,
   paciente_entubado VARCHAR(10) NULL,
   tipo_trajeto VARCHAR(30) NULL,
+  setor_origem_texto VARCHAR(120) NULL,
   modo_espera VARCHAR(30) NULL,
   quarto VARCHAR(30) NOT NULL,
   nome_destino VARCHAR(160) NOT NULL,

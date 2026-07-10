@@ -18,6 +18,10 @@ const columns = [
     name: "tipo_trajeto",
     definition: "ADD COLUMN tipo_trajeto VARCHAR(30) NULL AFTER paciente_entubado",
   },
+  {
+    name: "setor_origem_texto",
+    definition: "ADD COLUMN setor_origem_texto VARCHAR(120) NULL AFTER tipo_trajeto",
+  },
 ];
 
 async function columnExists(connection, columnName) {

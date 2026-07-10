@@ -332,6 +332,7 @@ const resources = {
       "paciente_tipo",
       "paciente_entubado",
       "tipo_trajeto",
+      "setor_origem_texto",
       "modo_espera",
       "quarto",
       "nome_destino",
