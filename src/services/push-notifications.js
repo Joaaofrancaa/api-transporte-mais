@@ -2,6 +2,7 @@ const webPush = require("web-push");
 
 const env = require("../config/env");
 const { getDatabasePool } = require("../database/connection");
+const { getCurrentLocalSqlDateTime } = require("../utils/datetime");
 const {
   isFcmConfigured,
   sendTransportRequestNotification: sendFcmTransportRequestNotification,
@@ -12,7 +13,6 @@ const dueNotificationIntervalMs = 5 * 1000;
 const cardRenderGracePeriodMs = 0;
 const defaultNotificationLeadMinutes = 60;
 const maxNotificationTimeoutMs = 2 ** 31 - 1;
-const notificationTimeZone = process.env.APP_TIME_ZONE || "America/Sao_Paulo";
 
 function getNotificationLeadMs(options = {}) {
   if (
@@ -31,27 +31,6 @@ function getNotificationLeadMs(options = {}) {
   }
 
   return minutes * 60 * 1000;
-}
-
-function getCurrentLocalSqlDateTime(date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    day: "2-digit",
-    hour: "2-digit",
-    hour12: false,
-    hourCycle: "h23",
-    minute: "2-digit",
-    month: "2-digit",
-    second: "2-digit",
-    timeZone: notificationTimeZone,
-    year: "numeric",
-  }).formatToParts(date);
-  const values = Object.fromEntries(
-    parts
-      .filter((part) => part.type !== "literal")
-      .map((part) => [part.type, part.value]),
-  );
-
-  return `${values.year}-${values.month}-${values.day} ${values.hour}:${values.minute}:${values.second}`;
 }
 
 function isPushConfigured() {

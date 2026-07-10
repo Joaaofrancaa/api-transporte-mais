@@ -1,12 +1,13 @@
 const createCrudRepository = require("../repositories/crud-repository");
 const resources = require("../resources/resource-definitions");
 const createHttpError = require("../utils/http-error");
+const { getCurrentLocalSqlDateTime } = require("../utils/datetime");
 
 const repository = createCrudRepository(resources.acompanhamentosAmbulancia);
 const driversRepository = createCrudRepository(resources.motoristas);
 
 function getActionTimestamp() {
-  return new Date().toISOString().slice(0, 19).replace("T", " ");
+  return getCurrentLocalSqlDateTime();
 }
 
 function ensureSameInstitution(request, item) {
