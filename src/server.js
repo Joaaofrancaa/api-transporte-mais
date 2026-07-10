@@ -37,6 +37,9 @@ const {
   ensureTransportRequestNotificationsTable,
 } = require("./database/ensure-transport-request-notifications");
 const {
+  ensureTrackingServiceWorkflow,
+} = require("./database/ensure-tracking-service-workflow");
+const {
   startAutomaticBackups,
   stopAutomaticBackups,
 } = require("./services/database-backup");
@@ -61,6 +64,7 @@ async function startServer() {
   await ensureInstitutionLogoColumn();
   await ensureUserProfileColumn();
   await ensureTransportCompaniesTable();
+  await ensureTrackingServiceWorkflow();
 
   const app = createApp();
   const server = app.listen(env.port, () => {
