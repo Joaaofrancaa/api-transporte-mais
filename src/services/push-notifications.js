@@ -14,26 +14,6 @@ const defaultNotificationLeadMinutes = 60;
 const maxNotificationTimeoutMs = 2 ** 31 - 1;
 const notificationTimeZone = process.env.APP_TIME_ZONE || "America/Sao_Paulo";
 
-let dueNotificationTimer;
-let isProcessingDueNotifications = false;
-
-function getRequestScheduledDate(request) {
-  const scheduledAt = request?.agendado_para;
-
-  if (!scheduledAt) {
-    return null;
-  }
-
-  if (scheduledAt instanceof Date) {
-    return scheduledAt;
-  }
-
-  const normalizedDateTime = String(scheduledAt).replace(" ", "T").slice(0, 16);
-  const date = new Date(normalizedDateTime);
-
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
 function getNotificationLeadMs(options = {}) {
   if (
     !Object.prototype.hasOwnProperty.call(
@@ -51,22 +31,6 @@ function getNotificationLeadMs(options = {}) {
   }
 
   return minutes * 60 * 1000;
-}
-
-function getNotificationDueDate(request, options = {}) {
-  const scheduledDate = getRequestScheduledDate(request);
-
-  if (!scheduledDate) {
-    return null;
-  }
-
-  return new Date(scheduledDate.getTime() - getNotificationLeadMs(options));
-}
-
-function isRequestDueForNotification(request, options = {}) {
-  const dueDate = getNotificationDueDate(request, options);
-
-  return !dueDate || dueDate.getTime() <= Date.now();
 }
 
 function getCurrentLocalSqlDateTime(date = new Date()) {
@@ -88,28 +52,6 @@ function getCurrentLocalSqlDateTime(date = new Date()) {
   );
 
   return `${values.year}-${values.month}-${values.day} ${values.hour}:${values.minute}:${values.second}`;
-}
-
-function getNotificationDelayMs(request, options = {}) {
-  if (options.notificar_motoristas_agora === true) {
-    return cardRenderGracePeriodMs;
-  }
-
-  const dueDate = getNotificationDueDate({
-    agendado_para: options.agendado_para || request?.agendado_para,
-  }, options);
-
-  if (!dueDate) {
-    return cardRenderGracePeriodMs;
-  }
-
-  const delayMs = dueDate.getTime() - Date.now() + cardRenderGracePeriodMs;
-
-  if (delayMs <= cardRenderGracePeriodMs) {
-    return cardRenderGracePeriodMs;
-  }
-
-  return Math.min(delayMs, maxNotificationTimeoutMs);
 }
 
 function isPushConfigured() {
@@ -303,216 +245,371 @@ async function sendTestNotification(user) {
   };
 }
 
-async function getTransportRequestNotificationReadiness(requestId) {
-  if (!requestId) {
-    return null;
+/**
+ * Generic engine behind "notify drivers about a new dispatchable item"
+ * (transport requests and, now, ambulance tracking records). Both resources
+ * share the same due/lead-time math, web-push + FCM sending, and dedupe
+ * table pattern — only table/field names and the notification payload differ.
+ */
+function createDispatchNotifier(config) {
+  const {
+    tableName,
+    notificationsTableName,
+    notificationsFkColumn,
+    scheduledDateField,
+    pendingSituacao,
+    buildPayload,
+    // When set, items whose scheduled date is already this far in the past
+    // are treated as backdated/historical entries and never notified —
+    // even if forceImmediateNotification is set — instead of blasting a
+    // driver about a trip that (as far as the schedule says) already
+    // happened long ago.
+    pastToleranceMs = null,
+  } = config;
+
+  let dueNotificationTimer;
+  let isProcessingDueNotifications = false;
+
+  function isTooStaleToNotify(item) {
+    if (pastToleranceMs == null) {
+      return false;
+    }
+
+    const scheduledDate = getScheduledDate(item);
+
+    if (!scheduledDate) {
+      return false;
+    }
+
+    return Date.now() - scheduledDate.getTime() > pastToleranceMs;
   }
 
-  const pool = getDatabasePool();
-  const [rows] = await pool.query(
-    `SELECT situacao, agendado_para, agendado_para <= ? AS vencida
-       FROM solicitacoes_transporte
-      WHERE id = ?
-      LIMIT 1`,
-    [getCurrentLocalSqlDateTime(), requestId],
-  );
+  function getScheduledDate(item) {
+    const scheduledAt = item?.[scheduledDateField];
 
-  return rows[0] || null;
+    if (!scheduledAt) {
+      return null;
+    }
+
+    if (scheduledAt instanceof Date) {
+      return scheduledAt;
+    }
+
+    const normalizedDateTime = String(scheduledAt).replace(" ", "T").slice(0, 16);
+    const date = new Date(normalizedDateTime);
+
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  function getNotificationDueDate(item, options = {}) {
+    const scheduledDate = getScheduledDate(item);
+
+    if (!scheduledDate) {
+      return null;
+    }
+
+    return new Date(scheduledDate.getTime() - getNotificationLeadMs(options));
+  }
+
+  function isDueForNotification(item, options = {}) {
+    const dueDate = getNotificationDueDate(item, options);
+
+    return !dueDate || dueDate.getTime() <= Date.now();
+  }
+
+  function getNotificationDelayMs(item, options = {}) {
+    if (options.notificar_motoristas_agora === true) {
+      return cardRenderGracePeriodMs;
+    }
+
+    const dueDate = getNotificationDueDate({
+      [scheduledDateField]: options[scheduledDateField] || item?.[scheduledDateField],
+    }, options);
+
+    if (!dueDate) {
+      return cardRenderGracePeriodMs;
+    }
+
+    const delayMs = dueDate.getTime() - Date.now() + cardRenderGracePeriodMs;
+
+    if (delayMs <= cardRenderGracePeriodMs) {
+      return cardRenderGracePeriodMs;
+    }
+
+    return Math.min(delayMs, maxNotificationTimeoutMs);
+  }
+
+  async function getNotificationReadiness(itemId) {
+    if (!itemId) {
+      return null;
+    }
+
+    const pool = getDatabasePool();
+    const [rows] = await pool.query(
+      `SELECT situacao, ${scheduledDateField}, ${scheduledDateField} <= ? AS vencida
+         FROM ${tableName}
+        WHERE id = ?
+        LIMIT 1`,
+      [getCurrentLocalSqlDateTime(), itemId],
+    );
+
+    return rows[0] || null;
+  }
+
+  async function markNotified(itemId) {
+    if (!itemId) {
+      return;
+    }
+
+    const pool = getDatabasePool();
+
+    await pool.execute(
+      `INSERT IGNORE INTO ${notificationsTableName}
+        (${notificationsFkColumn}, notificado_em)
+       VALUES (?, NOW())`,
+      [itemId],
+    );
+  }
+
+  async function notifyNew(item, options = {}) {
+    if (options.notificar_motoristas === false || options.suprimir_notificacao === true) {
+      return { configured: true, sent: 0, failed: 0, skipped: true };
+    }
+
+    if (isTooStaleToNotify(item)) {
+      return { configured: true, sent: 0, failed: 0, skipped: true };
+    }
+
+    const forceImmediateNotification = options.notificar_motoristas_agora === true;
+    const readiness = await getNotificationReadiness(item?.id);
+
+    if (readiness) {
+      const isPending = readiness.situacao === pendingSituacao;
+      const isDue =
+        forceImmediateNotification ||
+        isDueForNotification(readiness, options) ||
+        Number(readiness.vencida) === 1;
+
+      if (!isPending || !isDue) {
+        return { configured: true, sent: 0, failed: 0, skipped: true };
+      }
+    }
+
+    if (
+      !forceImmediateNotification &&
+      !readiness &&
+      !isDueForNotification(item, options)
+    ) {
+      return { configured: true, sent: 0, failed: 0, skipped: true };
+    }
+
+    const webPushConfigured = configureWebPush();
+    const fcmConfigured = isFcmConfigured();
+
+    if (!webPushConfigured && !fcmConfigured) {
+      console.warn("Notificacao push ignorada: VAPID e Firebase nao configurados.");
+      return { configured: false, sent: 0, failed: 0, skipped: true };
+    }
+
+    if (!item?.instituicao_id) {
+      console.warn(`Notificacao push ignorada: ${tableName} sem instituicao.`, {
+        id: item?.id,
+      });
+      return { configured: true, sent: 0, failed: 0, skipped: true };
+    }
+
+    const itemPayload = buildPayload(item);
+    const payload = {
+      icon: "/app-icon-192.png",
+      badge: "/app-icon-192.png",
+      url: "/",
+      ...itemPayload,
+      data: {
+        section: "atendimento",
+        ...itemPayload.data,
+      },
+    };
+
+    let webSent = 0;
+    let webFailed = 0;
+
+    if (webPushConfigured) {
+      const recipients = await listRecipients(item.instituicao_id);
+
+      if (!recipients.length) {
+        console.warn("Notificacao web push ignorada: nenhum motorista com inscricao ativa.", {
+          institutionId: item.instituicao_id,
+          id: item.id,
+        });
+      } else {
+        const results = await Promise.all(
+          recipients.map((row) => sendToSubscription(row, payload)),
+        );
+        webSent = results.filter((result) => result.ok).length;
+        webFailed = results.length - webSent;
+      }
+    }
+
+    const fcmResult = fcmConfigured
+      ? await sendFcmTransportRequestNotification(item, payload)
+      : { configured: false, sent: 0, failed: 0, skipped: true };
+    const sent = webSent + fcmResult.sent;
+    const failed = webFailed + fcmResult.failed;
+
+    if (sent > 0) {
+      await markNotified(item.id);
+    }
+
+    return {
+      configured: true,
+      sent,
+      failed,
+      skipped: sent === 0 && failed === 0,
+      channels: {
+        web: {
+          configured: webPushConfigured,
+          sent: webSent,
+          failed: webFailed,
+        },
+        fcm: fcmResult,
+      },
+    };
+  }
+
+  function schedule(item, options = {}) {
+    const delayMs = getNotificationDelayMs(item, options);
+
+    setTimeout(() => {
+      notifyNew(item, options).catch((error) => {
+        console.error(`Falha ao enviar notificacao de novo item (${tableName}).`, error);
+      });
+    }, delayMs);
+
+    return {
+      scheduled: true,
+      delayMs,
+    };
+  }
+
+  async function listDueUnnotified(limit = 50) {
+    const pool = getDatabasePool();
+    const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 50, 1), 200);
+    const notificationLookaheadDateTime = getCurrentLocalSqlDateTime(
+      new Date(Date.now() + defaultNotificationLeadMinutes * 60 * 1000),
+    );
+    const [rows] = await pool.query(
+      `SELECT t.*
+         FROM ${tableName} t
+         LEFT JOIN ${notificationsTableName} tn
+           ON tn.${notificationsFkColumn} = t.id
+        WHERE t.situacao = ?
+          AND t.${scheduledDateField} <= ?
+          AND tn.id IS NULL
+        ORDER BY t.${scheduledDateField} ASC, t.id ASC
+        LIMIT ?`,
+      [pendingSituacao, notificationLookaheadDateTime, safeLimit],
+    );
+
+    return rows;
+  }
+
+  async function notifyDue() {
+    if ((!isPushConfigured() && !isFcmConfigured()) || isProcessingDueNotifications) {
+      return;
+    }
+
+    isProcessingDueNotifications = true;
+
+    try {
+      const items = await listDueUnnotified();
+
+      for (const item of items) {
+        await notifyNew(item);
+      }
+    } catch (error) {
+      console.error(`Falha ao processar notificacoes pendentes (${tableName}).`, error);
+    } finally {
+      isProcessingDueNotifications = false;
+    }
+  }
+
+  function startPolling() {
+    if (dueNotificationTimer) {
+      return;
+    }
+
+    notifyDue();
+    dueNotificationTimer = setInterval(notifyDue, dueNotificationIntervalMs);
+  }
+
+  function stopPolling() {
+    if (!dueNotificationTimer) {
+      return;
+    }
+
+    clearInterval(dueNotificationTimer);
+    dueNotificationTimer = undefined;
+  }
+
+  return { schedule, notifyNew, notifyDue, startPolling, stopPolling };
+}
+
+const transportRequestNotifier = createDispatchNotifier({
+  tableName: "solicitacoes_transporte",
+  notificationsTableName: "solicitacoes_transporte_notificacoes",
+  notificationsFkColumn: "solicitacao_id",
+  scheduledDateField: "agendado_para",
+  pendingSituacao: "PENDENTE",
+  buildPayload: (request) => ({
+    title: "TRANSPORTE!",
+    body: request.nome_destino || "",
+    tag: `solicitacao-transporte-${request.id}`,
+    data: { requestId: request.id },
+  }),
+});
+
+const trackingNotifier = createDispatchNotifier({
+  tableName: "acompanhamentos_ambulancia",
+  notificationsTableName: "acompanhamentos_ambulancia_notificacoes",
+  notificationsFkColumn: "acompanhamento_id",
+  scheduledDateField: "saida_em",
+  pendingSituacao: "AGENDADO",
+  // Acompanhamentos are usually dispatched right away, but staff can also
+  // backdate one for record-keeping. Don't page a driver about a trip whose
+  // departure is more than 2 minutes in the past — treat it as historical.
+  pastToleranceMs: 2 * 60 * 1000,
+  buildPayload: (record) => ({
+    title: "TRANSPORTE!",
+    body: record.nome_destino || record.nome_paciente || "",
+    tag: `acompanhamento-ambulancia-${record.id}`,
+    data: { trackingId: record.id },
+  }),
+});
+
+function scheduleNewTransportRequestNotification(request, options = {}) {
+  return transportRequestNotifier.schedule(request, options);
+}
+
+function scheduleNewTrackingNotification(record, options = {}) {
+  return trackingNotifier.schedule(record, options);
 }
 
 async function notifyNewTransportRequest(request, options = {}) {
-  if (options.notificar_motoristas === false || options.suprimir_notificacao === true) {
-    return { configured: true, sent: 0, failed: 0, skipped: true };
-  }
-
-  const forceImmediateNotification = options.notificar_motoristas_agora === true;
-  const readiness = await getTransportRequestNotificationReadiness(request?.id);
-
-  if (readiness) {
-    const isPending = readiness.situacao === "PENDENTE";
-    const isDue =
-      forceImmediateNotification ||
-      isRequestDueForNotification(readiness, options) ||
-      Number(readiness.vencida) === 1;
-
-    if (!isPending || !isDue) {
-      return { configured: true, sent: 0, failed: 0, skipped: true };
-    }
-  }
-
-  if (
-    !forceImmediateNotification &&
-    !readiness &&
-    !isRequestDueForNotification(request, options)
-  ) {
-    return { configured: true, sent: 0, failed: 0, skipped: true };
-  }
-
-  const webPushConfigured = configureWebPush();
-  const fcmConfigured = isFcmConfigured();
-
-  if (!webPushConfigured && !fcmConfigured) {
-    console.warn("Notificacao push ignorada: VAPID e Firebase nao configurados.");
-    return { configured: false, sent: 0, failed: 0, skipped: true };
-  }
-
-  if (!request?.instituicao_id) {
-    console.warn("Notificacao push ignorada: solicitacao sem instituicao.", {
-      requestId: request?.id,
-    });
-    return { configured: true, sent: 0, failed: 0, skipped: true };
-  }
-
-  const payload = {
-    title: "TRANSPORTE!",
-    body: request.nome_destino || "",
-    icon: "/app-icon-192.png",
-    badge: "/app-icon-192.png",
-    tag: `solicitacao-transporte-${request.id}`,
-    url: "/",
-    data: {
-      section: "atendimento",
-      requestId: request.id,
-    },
-  };
-
-  let webSent = 0;
-  let webFailed = 0;
-
-  if (webPushConfigured) {
-    const recipients = await listRecipients(request.instituicao_id);
-
-    if (!recipients.length) {
-      console.warn("Notificacao web push ignorada: nenhum motorista com inscricao ativa.", {
-        institutionId: request.instituicao_id,
-        requestId: request.id,
-      });
-    } else {
-      const results = await Promise.all(
-        recipients.map((row) => sendToSubscription(row, payload)),
-      );
-      webSent = results.filter((result) => result.ok).length;
-      webFailed = results.length - webSent;
-    }
-  }
-
-  const fcmResult = fcmConfigured
-    ? await sendFcmTransportRequestNotification(request, payload)
-    : { configured: false, sent: 0, failed: 0, skipped: true };
-  const sent = webSent + fcmResult.sent;
-  const failed = webFailed + fcmResult.failed;
-
-  if (sent > 0) {
-    await markTransportRequestNotified(request.id);
-  }
-
-  return {
-    configured: true,
-    sent,
-    failed,
-    skipped: sent === 0 && failed === 0,
-    channels: {
-      web: {
-        configured: webPushConfigured,
-        sent: webSent,
-        failed: webFailed,
-      },
-      fcm: fcmResult,
-    },
-  };
-}
-
-function scheduleNewTransportRequestNotification(request, options = {}) {
-  const delayMs = getNotificationDelayMs(request, options);
-
-  setTimeout(() => {
-    notifyNewTransportRequest(request, options).catch((error) => {
-      console.error("Falha ao enviar notificacao de nova solicitacao.", error);
-    });
-  }, delayMs);
-
-  return {
-    scheduled: true,
-    delayMs,
-  };
-}
-
-async function markTransportRequestNotified(requestId) {
-  if (!requestId) {
-    return;
-  }
-
-  const pool = getDatabasePool();
-
-  await pool.execute(
-    `INSERT IGNORE INTO solicitacoes_transporte_notificacoes
-      (solicitacao_id, notificado_em)
-     VALUES (?, NOW())`,
-    [requestId],
-  );
-}
-
-async function listDueUnnotifiedTransportRequests(limit = 50) {
-  const pool = getDatabasePool();
-  const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 50, 1), 200);
-  const notificationLookaheadDateTime = getCurrentLocalSqlDateTime(
-    new Date(Date.now() + defaultNotificationLeadMinutes * 60 * 1000),
-  );
-  const [rows] = await pool.query(
-    `SELECT st.*
-       FROM solicitacoes_transporte st
-       LEFT JOIN solicitacoes_transporte_notificacoes stn
-         ON stn.solicitacao_id = st.id
-      WHERE st.situacao = 'PENDENTE'
-        AND st.agendado_para <= ?
-        AND stn.id IS NULL
-      ORDER BY st.agendado_para ASC, st.id ASC
-      LIMIT ?`,
-    [notificationLookaheadDateTime, safeLimit],
-  );
-
-  return rows;
+  return transportRequestNotifier.notifyNew(request, options);
 }
 
 async function notifyDueTransportRequests() {
-  if ((!isPushConfigured() && !isFcmConfigured()) || isProcessingDueNotifications) {
-    return;
-  }
-
-  isProcessingDueNotifications = true;
-
-  try {
-    const requests = await listDueUnnotifiedTransportRequests();
-
-    for (const request of requests) {
-      await notifyNewTransportRequest(request);
-    }
-  } catch (error) {
-    console.error("Falha ao processar notificacoes pendentes.", error);
-  } finally {
-    isProcessingDueNotifications = false;
-  }
+  return transportRequestNotifier.notifyDue();
 }
 
 function startDueTransportRequestNotifications() {
-  if (dueNotificationTimer) {
-    return;
-  }
-
-  notifyDueTransportRequests();
-  dueNotificationTimer = setInterval(
-    notifyDueTransportRequests,
-    dueNotificationIntervalMs,
-  );
+  transportRequestNotifier.startPolling();
+  trackingNotifier.startPolling();
 }
 
 function stopDueTransportRequestNotifications() {
-  if (!dueNotificationTimer) {
-    return;
-  }
-
-  clearInterval(dueNotificationTimer);
-  dueNotificationTimer = undefined;
+  transportRequestNotifier.stopPolling();
+  trackingNotifier.stopPolling();
 }
 
 module.exports = {
@@ -523,6 +620,7 @@ module.exports = {
   removeSubscription,
   saveSubscription,
   scheduleNewTransportRequestNotification,
+  scheduleNewTrackingNotification,
   sendTestNotification,
   startDueTransportRequestNotifications,
   stopDueTransportRequestNotifications,

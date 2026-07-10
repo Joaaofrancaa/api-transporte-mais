@@ -1,5 +1,6 @@
 const { Router } = require("express");
 
+const acompanhamentosAmbulanciaActions = require("../controllers/acompanhamentos-ambulancia-controller");
 const authController = require("../controllers/auth-controller");
 const bootstrapController = require("../controllers/bootstrap-controller");
 const createResourceController = require("../controllers/resource-controller-factory");
@@ -68,6 +69,19 @@ router.patch(
 router.patch(
   "/solicitacoes-transporte/:id/concluir",
   solicitacoesTransporteActions.finish,
+);
+
+router.patch(
+  "/acompanhamentos-ambulancia/:id/aceitar",
+  acompanhamentosAmbulanciaActions.accept,
+);
+router.patch(
+  "/acompanhamentos-ambulancia/:id/iniciar",
+  acompanhamentosAmbulanciaActions.start,
+);
+router.patch(
+  "/acompanhamentos-ambulancia/:id/concluir",
+  acompanhamentosAmbulanciaActions.finish,
 );
 
 module.exports = router;

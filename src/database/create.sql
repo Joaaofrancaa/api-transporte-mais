@@ -261,7 +261,10 @@ CREATE TABLE IF NOT EXISTS acompanhamentos_ambulancia (
   nome_motorista_historico VARCHAR(160) NOT NULL,
   saida_em DATETIME NOT NULL,
   retorno_em DATETIME NULL,
-  situacao ENUM('AGENDADO', 'CONCLUIDO', 'CANCELADO') NOT NULL DEFAULT 'AGENDADO',
+  situacao ENUM('AGENDADO', 'ACEITO', 'EM_ANDAMENTO', 'CONCLUIDO', 'CANCELADO') NOT NULL DEFAULT 'AGENDADO',
+  aceito_em DATETIME NULL,
+  iniciado_em DATETIME NULL,
+  finalizado_em DATETIME NULL,
   observacoes TEXT NULL,
   criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -409,6 +412,19 @@ CREATE TABLE IF NOT EXISTS solicitacoes_transporte_notificacoes (
   KEY idx_solicitacoes_transporte_notificacoes_notificado_em (notificado_em),
   CONSTRAINT fk_solicitacoes_transporte_notificacoes_solicitacao
     FOREIGN KEY (solicitacao_id) REFERENCES solicitacoes_transporte (id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS acompanhamentos_ambulancia_notificacoes (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  acompanhamento_id BIGINT UNSIGNED NOT NULL,
+  notificado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_acompanhamentos_ambulancia_notificacoes_acompanhamento (acompanhamento_id),
+  KEY idx_acompanhamentos_ambulancia_notificacoes_notificado_em (notificado_em),
+  CONSTRAINT fk_acompanhamentos_ambulancia_notificacoes_acompanhamento
+    FOREIGN KEY (acompanhamento_id) REFERENCES acompanhamentos_ambulancia (id)
     ON UPDATE CASCADE
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

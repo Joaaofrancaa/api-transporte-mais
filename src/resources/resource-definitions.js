@@ -2,6 +2,7 @@ const { sendSupportTicketEmail } = require("./support-ticket-hooks");
 const { getDatabasePool } = require("../database/connection");
 const {
   scheduleNewTransportRequestNotification,
+  scheduleNewTrackingNotification,
 } = require("../services/push-notifications");
 const createHttpError = require("../utils/http-error");
 const { hashPasswordField } = require("../utils/password-hash");
@@ -345,6 +346,9 @@ const resources = {
       "saida_em",
       "retorno_em",
       "situacao",
+      "aceito_em",
+      "iniciado_em",
+      "finalizado_em",
       "faturamento_status",
       "observacoes",
     ],
@@ -358,11 +362,11 @@ const resources = {
       "endereco_destino",
       "nome_acompanhante_historico",
       "tipo_acompanhante_historico",
-      "nome_motorista_historico",
       "saida_em",
     ],
     beforeCreate: ensureInstitutionUsesTracking,
     beforeUpdate: ensureInstitutionUsesTracking,
+    afterCreate: scheduleNewTrackingNotification,
   },
 };
 
