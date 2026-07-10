@@ -139,6 +139,19 @@ async function updateSituation(request, response, next, options) {
     }
 
     const data = options.data(request.body || {}, item);
+
+    if (data.retorno_em && item.saida_em) {
+      const returnDate = new Date(String(data.retorno_em).replace(" ", "T"));
+      const departureDate = new Date(item.saida_em);
+
+      if (!Number.isNaN(returnDate.getTime()) && !Number.isNaN(departureDate.getTime()) && returnDate < departureDate) {
+        throw createHttpError(
+          409,
+          "O horário de retorno não pode ser anterior ao horário de saída agendado.",
+        );
+      }
+    }
+
     const updatedItem = await repository.update(request.params.id, {
       ...data,
       situacao: options.nextSituation,

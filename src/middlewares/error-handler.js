@@ -34,12 +34,29 @@ function getDuplicateEntryMessage(error) {
   return "Já existe um cadastro com essas informações.";
 }
 
+function getCheckConstraintMessage(error) {
+  const constraint = String(error.sqlMessage || error.message || "");
+
+  if (constraint.includes("ck_acompanhamentos_periodo")) {
+    return "O horário de retorno não pode ser anterior ao horário de saída.";
+  }
+
+  if (constraint.includes("ck_solicitacoes_periodo")) {
+    return "O horário de retorno não pode ser anterior ao horário de saída.";
+  }
+
+  return "Não foi possível salvar: os dados informados não são válidos.";
+}
+
 function errorHandler(error, _request, response, _next) {
   const isDuplicateEntry = error.code === "ER_DUP_ENTRY";
   const isForeignKeyError =
     error.code === "ER_NO_REFERENCED_ROW_2" ||
     error.code === "ER_ROW_IS_REFERENCED_2";
-  const statusCode = error.statusCode || (isDuplicateEntry || isForeignKeyError ? 400 : 500);
+  const isCheckConstraintError = error.code === "ER_CHECK_CONSTRAINT_VIOLATED";
+  const statusCode =
+    error.statusCode ||
+    (isDuplicateEntry || isForeignKeyError || isCheckConstraintError ? 400 : 500);
 
   if (statusCode >= 500) {
     console.error(error);
@@ -55,6 +72,10 @@ function errorHandler(error, _request, response, _next) {
 
   if (isForeignKeyError) {
     publicMessage = "Não foi possível salvar porque há vínculos inválidos no cadastro.";
+  }
+
+  if (isCheckConstraintError) {
+    publicMessage = getCheckConstraintMessage(error);
   }
 
   const body = {
