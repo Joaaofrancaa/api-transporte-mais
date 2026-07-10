@@ -354,7 +354,6 @@ const resources = {
       "setor_id",
       "tipo",
       "nome_paciente",
-      "quarto",
       "nome_destino",
       "endereco_destino",
       "nome_acompanhante_historico",
