@@ -39,6 +39,8 @@ const {
 const {
   ensureTrackingServiceWorkflow,
 } = require("./database/ensure-tracking-service-workflow");
+const { ensureFleetTables } = require("./database/ensure-fleet-tables");
+const { ensureFleetColumns } = require("./database/ensure-fleet-columns");
 const {
   startAutomaticBackups,
   stopAutomaticBackups,
@@ -65,6 +67,8 @@ async function startServer() {
   await ensureUserProfileColumn();
   await ensureTransportCompaniesTable();
   await ensureTrackingServiceWorkflow();
+  await ensureFleetTables();
+  await ensureFleetColumns();
 
   const app = createApp();
   const server = app.listen(env.port, () => {

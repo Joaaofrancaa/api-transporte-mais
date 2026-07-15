@@ -2,9 +2,14 @@ const createCrudRepository = require("../repositories/crud-repository");
 const resources = require("../resources/resource-definitions");
 const createHttpError = require("../utils/http-error");
 const { getCurrentLocalSqlDateTime } = require("../utils/datetime");
+const {
+  ensureVehicleAvailableForAccept,
+  updateVehicleSituationForAction,
+} = require("../services/vehicle-fleet-service");
 
 const repository = createCrudRepository(resources.solicitacoesTransporte);
 const driversRepository = createCrudRepository(resources.motoristas);
+const TABLE_NAME = "solicitacoes_transporte";
 
 function getActionTimestamp() {
   return getCurrentLocalSqlDateTime();
@@ -146,6 +151,15 @@ async function updateSituation(request, response, next, options) {
     if (options.action === "accept") {
       await ensureDriverAvailableForAccept(request, request.body?.motorista_id);
       await ensureDriverAllowed(request, request.body?.motorista_id);
+
+      if (request.body?.veiculo_id) {
+        await ensureVehicleAvailableForAccept(
+          request,
+          request.body.veiculo_id,
+          item.id,
+          TABLE_NAME,
+        );
+      }
     }
 
     if (["start", "finish", "release"].includes(options.action)) {
@@ -158,6 +172,7 @@ async function updateSituation(request, response, next, options) {
       situacao: options.nextSituation,
     });
     await updateDriverSituationForAction(options.action, item, data);
+    await updateVehicleSituationForAction(options.action, item, data, TABLE_NAME);
 
     response.json({ data: updatedItem });
   } catch (error) {
@@ -182,6 +197,7 @@ function accept(request, response, next) {
     data: (body) => ({
       aceito_em: getActionTimestamp(),
       motorista_id: body.motorista_id,
+      veiculo_id: body.veiculo_id || null,
     }),
   });
 }
@@ -221,6 +237,7 @@ function release(request, response, next) {
     nextSituation: "PENDENTE",
     data: () => ({
       motorista_id: null,
+      veiculo_id: null,
       aceito_em: null,
       iniciado_em: null,
       saida_em: null,
