@@ -70,6 +70,10 @@ router.patch(
   "/solicitacoes-transporte/:id/concluir",
   solicitacoesTransporteActions.finish,
 );
+router.patch(
+  "/solicitacoes-transporte/:id/liberar",
+  solicitacoesTransporteActions.release,
+);
 
 router.patch(
   "/acompanhamentos-ambulancia/:id/aceitar",
@@ -82,6 +86,10 @@ router.patch(
 router.patch(
   "/acompanhamentos-ambulancia/:id/concluir",
   acompanhamentosAmbulanciaActions.finish,
+);
+router.patch(
+  "/acompanhamentos-ambulancia/:id/liberar",
+  acompanhamentosAmbulanciaActions.release,
 );
 
 module.exports = router;

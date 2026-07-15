@@ -78,7 +78,7 @@ async function updateDriverSituationForAction(action, item, data) {
     return;
   }
 
-  if (action === "finish" && item.motorista_id) {
+  if (["finish", "release"].includes(action) && item.motorista_id) {
     const driver = await driversRepository.findById(item.motorista_id);
 
     if (!driver || driver.ativo === false || driver.ativo === 0 || driver.situacao === "INATIVO") {
@@ -106,7 +106,7 @@ function ensureActionAllowed(request, item, action) {
     return;
   }
 
-  if (profile === "MOTORISTA" && ["accept", "start", "finish"].includes(action)) {
+  if (profile === "MOTORISTA" && ["accept", "start", "finish", "release"].includes(action)) {
     return;
   }
 
@@ -123,10 +123,14 @@ async function updateSituation(request, response, next, options) {
 
     ensureActionAllowed(request, item, options.action);
 
-    if (item.situacao !== options.expectedSituation) {
+    const expectedSituations = Array.isArray(options.expectedSituation)
+      ? options.expectedSituation
+      : [options.expectedSituation];
+
+    if (!expectedSituations.includes(item.situacao)) {
       throw createHttpError(
         409,
-        `Acompanhamento precisa estar com situação ${options.expectedSituation}.`,
+        `Acompanhamento precisa estar com situação ${expectedSituations.join(" ou ")}.`,
       );
     }
 
@@ -135,7 +139,7 @@ async function updateSituation(request, response, next, options) {
       await ensureDriverAllowed(request, request.body?.motorista_id);
     }
 
-    if (["start", "finish"].includes(options.action)) {
+    if (["start", "finish", "release"].includes(options.action)) {
       await ensureDriverAllowed(request, item.motorista_id);
     }
 
@@ -200,8 +204,22 @@ function finish(request, response, next) {
   });
 }
 
+function release(request, response, next) {
+  return updateSituation(request, response, next, {
+    action: "release",
+    expectedSituation: ["ACEITO", "EM_ANDAMENTO"],
+    nextSituation: "AGENDADO",
+    data: () => ({
+      motorista_id: null,
+      aceito_em: null,
+      iniciado_em: null,
+    }),
+  });
+}
+
 module.exports = {
   accept,
   finish,
+  release,
   start,
 };
