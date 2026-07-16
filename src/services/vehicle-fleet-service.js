@@ -6,6 +6,16 @@ const vehiclesRepository = createCrudRepository(resources.veiculos);
 const solicitacoesRepository = createCrudRepository(resources.solicitacoesTransporte);
 const acompanhamentosRepository = createCrudRepository(resources.acompanhamentosAmbulancia);
 
+function parseMileage(value) {
+  if (value == null || value === "") {
+    return null;
+  }
+
+  const mileage = Number(String(value).replace(/\D/g, ""));
+
+  return Number.isFinite(mileage) ? mileage : null;
+}
+
 function isConflictingOpenVehicleUse(item, veiculoId, currentRecordId, currentTable, openSituations, motoristaId) {
   if (
     (currentTable === item.tableName && Number(item.id) === Number(currentRecordId)) ||
@@ -102,7 +112,13 @@ async function updateVehicleSituationForAction(action, item, data, currentTable)
     const updateData = { situacao: nextSituation };
 
     if (action === "finish" && data.quilometragem_final != null) {
-      updateData.quilometragem_atual = data.quilometragem_final;
+      const currentMileage = parseMileage(vehicle.quilometragem_atual);
+      const finalMileage = parseMileage(data.quilometragem_final);
+
+      if (finalMileage != null) {
+        updateData.quilometragem_atual =
+          currentMileage == null ? finalMileage : Math.max(currentMileage, finalMileage);
+      }
     }
 
     await vehiclesRepository.update(item.veiculo_id, updateData);

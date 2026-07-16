@@ -104,3 +104,43 @@ test("bloqueia aceitar atendimento com veiculo em uso por outro motorista", asyn
     },
   );
 });
+
+test("nao reduz a quilometragem atual do veiculo ao finalizar atendimento antigo", async () => {
+  const state = createState({
+    vehicles: [{ id: 10, instituicao_id: 1, ativo: true, situacao: "EM_SERVICO", quilometragem_atual: 802000 }],
+  });
+  const { updateVehicleSituationForAction } = loadServiceWithRepositories(state);
+
+  await updateVehicleSituationForAction(
+    "finish",
+    { id: 21, instituicao_id: 1, veiculo_id: 10 },
+    { quilometragem_final: 801000 },
+    "solicitacoes_transporte",
+  );
+
+  assert.equal(state.vehicleUpdates.length, 1);
+  assert.deepEqual(state.vehicleUpdates[0], {
+    id: 10,
+    data: { situacao: "DISPONIVEL", quilometragem_atual: 802000 },
+  });
+});
+
+test("atualiza a quilometragem atual do veiculo quando a finalizacao e maior", async () => {
+  const state = createState({
+    vehicles: [{ id: 10, instituicao_id: 1, ativo: true, situacao: "EM_SERVICO", quilometragem_atual: 801000 }],
+  });
+  const { updateVehicleSituationForAction } = loadServiceWithRepositories(state);
+
+  await updateVehicleSituationForAction(
+    "finish",
+    { id: 21, instituicao_id: 1, veiculo_id: 10 },
+    { quilometragem_final: 802000 },
+    "solicitacoes_transporte",
+  );
+
+  assert.equal(state.vehicleUpdates.length, 1);
+  assert.deepEqual(state.vehicleUpdates[0], {
+    id: 10,
+    data: { situacao: "DISPONIVEL", quilometragem_atual: 802000 },
+  });
+});
