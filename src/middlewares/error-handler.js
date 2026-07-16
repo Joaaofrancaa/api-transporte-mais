@@ -38,7 +38,7 @@ function getCheckConstraintMessage(error) {
   const constraint = String(error.sqlMessage || error.message || "");
 
   if (constraint.includes("ck_solicitacoes_quilometragem") || constraint.includes("quilometragem")) {
-    return "A quilometragem final não pode ser menor que a quilometragem inicial.";
+    return "A quilometragem final deve ser maior que a quilometragem inicial.";
   }
 
   if (constraint.includes("ck_acompanhamentos_periodo")) {

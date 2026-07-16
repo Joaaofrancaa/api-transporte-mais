@@ -2,7 +2,7 @@ const createCrudRepository = require("../repositories/crud-repository");
 const resources = require("../resources/resource-definitions");
 const createHttpError = require("../utils/http-error");
 const { getCurrentLocalSqlDateTime } = require("../utils/datetime");
-const { ensureFinalMileageNotLower } = require("../utils/mileage");
+const { ensureFinalMileageGreaterThanInitial } = require("../utils/mileage");
 const {
   ensureVehicleAvailableForAccept,
   updateVehicleSituationForAction,
@@ -171,7 +171,7 @@ async function updateSituation(request, response, next, options) {
     const data = options.data(request.body || {}, item);
 
     if (options.action === "finish") {
-      ensureFinalMileageNotLower(item.quilometragem_inicial, data.quilometragem_final);
+      ensureFinalMileageGreaterThanInitial(item.quilometragem_inicial, data.quilometragem_final);
     }
 
     const updatedItem = await repository.update(request.params.id, {

@@ -10,16 +10,16 @@ function parseMileage(value) {
   return Number.isFinite(mileage) ? mileage : null;
 }
 
-function ensureFinalMileageNotLower(initialValue, finalValue) {
+function ensureFinalMileageGreaterThanInitial(initialValue, finalValue) {
   const initialMileage = parseMileage(initialValue);
   const finalMileage = parseMileage(finalValue);
 
-  if (initialMileage != null && finalMileage != null && finalMileage < initialMileage) {
-    throw createHttpError(409, "A quilometragem final não pode ser menor que a quilometragem inicial.");
+  if (initialMileage != null && finalMileage != null && finalMileage <= initialMileage) {
+    throw createHttpError(409, "A quilometragem final deve ser maior que a quilometragem inicial.");
   }
 }
 
 module.exports = {
-  ensureFinalMileageNotLower,
+  ensureFinalMileageGreaterThanInitial,
   parseMileage,
 };
