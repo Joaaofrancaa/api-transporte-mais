@@ -158,6 +158,7 @@ async function updateSituation(request, response, next, options) {
           request.body.veiculo_id,
           item.id,
           TABLE_NAME,
+          request.body.motorista_id,
         );
       }
     }

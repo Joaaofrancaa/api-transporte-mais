@@ -6,17 +6,33 @@ const vehiclesRepository = createCrudRepository(resources.veiculos);
 const solicitacoesRepository = createCrudRepository(resources.solicitacoesTransporte);
 const acompanhamentosRepository = createCrudRepository(resources.acompanhamentosAmbulancia);
 
-async function hasOtherOpenServiceForVehicle(veiculoId, currentRecordId, currentTable, institutionId) {
+function isConflictingOpenVehicleUse(item, veiculoId, currentRecordId, currentTable, openSituations, motoristaId) {
+  if (
+    (currentTable === item.tableName && Number(item.id) === Number(currentRecordId)) ||
+    Number(item.veiculo_id) !== Number(veiculoId) ||
+    !openSituations.includes(item.situacao)
+  ) {
+    return false;
+  }
+
+  return !motoristaId || Number(item.motorista_id) !== Number(motoristaId);
+}
+
+async function hasOtherOpenServiceForVehicle(veiculoId, currentRecordId, currentTable, institutionId, motoristaId = null) {
   const [requests, trackingRecords] = await Promise.all([
     solicitacoesRepository.list({ instituicao_id: institutionId, limit: 200 }),
     acompanhamentosRepository.list({ instituicao_id: institutionId, limit: 200 }),
   ]);
 
   const hasOpenRequest = requests.some(
-    (request) =>
-      !(currentTable === "solicitacoes_transporte" && Number(request.id) === Number(currentRecordId)) &&
-      Number(request.veiculo_id) === Number(veiculoId) &&
-      ["ACEITA", "EM_ANDAMENTO"].includes(request.situacao),
+    (request) => isConflictingOpenVehicleUse(
+      { ...request, tableName: "solicitacoes_transporte" },
+      veiculoId,
+      currentRecordId,
+      currentTable,
+      ["ACEITA", "EM_ANDAMENTO"],
+      motoristaId,
+    ),
   );
 
   if (hasOpenRequest) {
@@ -24,14 +40,18 @@ async function hasOtherOpenServiceForVehicle(veiculoId, currentRecordId, current
   }
 
   return trackingRecords.some(
-    (record) =>
-      !(currentTable === "acompanhamentos_ambulancia" && Number(record.id) === Number(currentRecordId)) &&
-      Number(record.veiculo_id) === Number(veiculoId) &&
-      ["ACEITO", "EM_ANDAMENTO"].includes(record.situacao),
+    (record) => isConflictingOpenVehicleUse(
+      { ...record, tableName: "acompanhamentos_ambulancia" },
+      veiculoId,
+      currentRecordId,
+      currentTable,
+      ["ACEITO", "EM_ANDAMENTO"],
+      motoristaId,
+    ),
   );
 }
 
-async function ensureVehicleAvailableForAccept(request, veiculoId, currentRecordId, currentTable) {
+async function ensureVehicleAvailableForAccept(request, veiculoId, currentRecordId, currentTable, motoristaId) {
   const vehicle = await vehiclesRepository.findById(veiculoId);
 
   if (!vehicle || Number(vehicle.instituicao_id) !== Number(request.authUser?.instituicao_id)) {
@@ -47,6 +67,7 @@ async function ensureVehicleAvailableForAccept(request, veiculoId, currentRecord
     currentRecordId,
     currentTable,
     request.authUser?.instituicao_id,
+    motoristaId,
   );
 
   if (inUse) {
