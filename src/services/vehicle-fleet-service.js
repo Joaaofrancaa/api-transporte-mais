@@ -1,20 +1,11 @@
 const createCrudRepository = require("../repositories/crud-repository");
 const resources = require("../resources/resource-definitions");
 const createHttpError = require("../utils/http-error");
+const { parseMileage } = require("../utils/mileage");
 
 const vehiclesRepository = createCrudRepository(resources.veiculos);
 const solicitacoesRepository = createCrudRepository(resources.solicitacoesTransporte);
 const acompanhamentosRepository = createCrudRepository(resources.acompanhamentosAmbulancia);
-
-function parseMileage(value) {
-  if (value == null || value === "") {
-    return null;
-  }
-
-  const mileage = Number(String(value).replace(/\D/g, ""));
-
-  return Number.isFinite(mileage) ? mileage : null;
-}
 
 function isConflictingOpenVehicleUse(item, veiculoId, currentRecordId, currentTable, openSituations, motoristaId) {
   if (
