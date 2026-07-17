@@ -228,12 +228,16 @@ function finish(request, response, next) {
     action: "finish",
     expectedSituation: "EM_ANDAMENTO",
     nextSituation: "CONCLUIDA",
-    data: (body) => ({
-      finalizado_em: getActionTimestamp(),
-      retorno_em: body.retorno_em,
-      quilometragem_final: body.quilometragem_final,
-      observacoes_atendimento: body.observacoes_atendimento,
-    }),
+    data: (body) => {
+      const finishedAt = getActionTimestamp();
+
+      return {
+        finalizado_em: finishedAt,
+        retorno_em: body.retorno_em || finishedAt,
+        quilometragem_final: body.quilometragem_final,
+        observacoes_atendimento: body.observacoes_atendimento,
+      };
+    },
   });
 }
 
