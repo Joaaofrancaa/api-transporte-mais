@@ -224,6 +224,7 @@ function finish(request, response, next) {
       finalizado_em: getActionTimestamp(),
       retorno_em: body.retorno_em || getActionTimestamp(),
       quilometragem_final: body.quilometragem_final,
+      modo_espera: body.modo_espera || null,
     }),
   });
 }
